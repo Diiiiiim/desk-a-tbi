@@ -10,7 +10,7 @@
  */
 import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
-import { useAuth } from "@/_core/hooks/useAuth";
+import { useAuth } from "@/hooks/useAuth";
 import { useData } from "@/contexts/DataContext";
 import CommunicationBar from "@/components/CommunicationBar";
 import KiosqueHeader from "@/components/KiosqueHeader";
