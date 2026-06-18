@@ -67,6 +67,7 @@ export interface AppData {
   modeles: ModeleActivite[];
   menus: { midi: Menu; soir: Menu };
   nomFoyer: string;
+  codePin: string;
 }
 
 // ─── Convertisseurs DB → App (snake_case → camelCase) ─────────────────────────
@@ -118,6 +119,7 @@ interface DataContextType {
   removeModele: (id: string) => Promise<void>;
   updateMenu: (type: 'midi' | 'soir', updates: Partial<Menu>) => Promise<void>;
   updateNomFoyer: (nom: string) => Promise<void>;
+  updateCodePin: (pin: string) => Promise<void>;
   resetData: () => void;
 }
 
@@ -130,6 +132,7 @@ const DEFAULT_APP_DATA: AppData = {
   residents: [], educateurs: [], activites: [], evenements: [], modeles: [],
   menus: { midi: DEFAULT_MENU, soir: DEFAULT_MENU },
   nomFoyer: 'Foyer — Borne Interactive',
+  codePin: '1234',
 };
 
 // IDs menus du jour (pour upsert)
@@ -217,6 +220,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
           soir: soir ? dbToMenu(soir) : DEFAULT_MENU,
         },
         nomFoyer: foyerData?.nom || 'Foyer — Borne Interactive',
+        codePin: foyerData?.code_pin || '1234',
       });
       setLoading(false);
       } catch (err) {
@@ -377,6 +381,11 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   // ── Foyer ─────────────────────────────────────────────────────────────────
+  const updateCodePin = useCallback(async (pin: string) => {
+    await supabase.from('foyers').update({ code_pin: pin }).eq('id', FOYER_ID);
+    setAppData(prev => ({ ...prev, codePin: pin }));
+  }, []);
+
   const updateNomFoyer = useCallback(async (nom: string) => {
     await supabase.from('foyers').update({ nom }).eq('id', FOYER_ID);
     setAppData(prev => ({ ...prev, nomFoyer: nom }));
@@ -396,6 +405,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       addModele, updateModele, removeModele,
       updateMenu,
       updateNomFoyer,
+      updateCodePin,
       resetData,
     }}>
       {children}

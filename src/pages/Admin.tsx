@@ -744,6 +744,135 @@ const styles = {
   } as React.CSSProperties,
 };
 
+// ─── Sous-composant : onglet Paramètres ──────────────────────────────────────
+function TabParametres() {
+  const { data, updateNomFoyer, updateCodePin } = useData();
+  const [nomFoyer, setNomFoyer] = useState(data.nomFoyer);
+  const [pinActuel, setPinActuel] = useState("");
+  const [pinNouveau, setPinNouveau] = useState("");
+  const [pinConfirm, setPinConfirm] = useState("");
+  const [msgNom, setMsgNom] = useState<string | null>(null);
+  const [msgPin, setMsgPin] = useState<string | null>(null);
+
+  async function handleSaveNom() {
+    if (!nomFoyer.trim()) return;
+    await updateNomFoyer(nomFoyer.trim());
+    setMsgNom("✅ Nom enregistré !");
+    setTimeout(() => setMsgNom(null), 3000);
+  }
+
+  async function handleSavePin() {
+    if (pinActuel !== data.codePin) {
+      setMsgPin("❌ Code PIN actuel incorrect");
+      setTimeout(() => setMsgPin(null), 3000);
+      return;
+    }
+    if (pinNouveau.length < 4) {
+      setMsgPin("❌ Le nouveau PIN doit contenir au moins 4 chiffres");
+      setTimeout(() => setMsgPin(null), 3000);
+      return;
+    }
+    if (pinNouveau !== pinConfirm) {
+      setMsgPin("❌ Les deux nouveaux PIN ne correspondent pas");
+      setTimeout(() => setMsgPin(null), 3000);
+      return;
+    }
+    await updateCodePin(pinNouveau);
+    setPinActuel(""); setPinNouveau(""); setPinConfirm("");
+    setMsgPin("✅ Code PIN modifié avec succès !");
+    setTimeout(() => setMsgPin(null), 3000);
+  }
+
+  const cardStyle: React.CSSProperties = {
+    background: "oklch(0.16 0.04 240)",
+    border: "2px solid oklch(0.30 0.04 240)",
+    borderRadius: "1rem",
+    padding: "1.5rem",
+    display: "flex",
+    flexDirection: "column",
+    gap: "1rem",
+    maxWidth: 500,
+  };
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: "2rem", overflowY: "auto", paddingBottom: "2rem" }}>
+      <h3 style={{ fontFamily: "'Baloo 2', sans-serif", fontWeight: 800, fontSize: "1.3rem", color: "#FFD600", margin: 0 }}>
+        ⚙️ Paramètres du Foyer
+      </h3>
+
+      {/* Nom du foyer */}
+      <div style={cardStyle}>
+        <h4 style={{ fontFamily: "'Baloo 2', sans-serif", fontWeight: 700, fontSize: "1.1rem", color: "#fff", margin: 0 }}>
+          🏠 Nom de la borne
+        </h4>
+        <input
+          type="text"
+          value={nomFoyer}
+          onChange={e => setNomFoyer(e.target.value)}
+          style={styles.input}
+          placeholder="Nom du foyer"
+        />
+        <button onClick={handleSaveNom} style={styles.btnPrimary}>
+          💾 Enregistrer le nom
+        </button>
+        {msgNom && (
+          <div style={{ fontFamily: "'Baloo 2', sans-serif", fontWeight: 700, color: msgNom.startsWith("✅") ? "#81C784" : "#EF9A9A" }}>
+            {msgNom}
+          </div>
+        )}
+      </div>
+
+      {/* Changement de PIN */}
+      <div style={cardStyle}>
+        <h4 style={{ fontFamily: "'Baloo 2', sans-serif", fontWeight: 700, fontSize: "1.1rem", color: "#fff", margin: 0 }}>
+          🔐 Changer le code PIN
+        </h4>
+        <label style={{ fontFamily: "'Baloo 2', sans-serif", fontWeight: 600, fontSize: "0.9rem", color: "oklch(0.65 0.02 240)", marginBottom: "-0.5rem" }}>
+          Code PIN actuel
+        </label>
+        <input
+          type="password"
+          value={pinActuel}
+          onChange={e => setPinActuel(e.target.value.replace(/\D/g, ""))}
+          maxLength={8}
+          placeholder="••••"
+          style={styles.input}
+        />
+        <label style={{ fontFamily: "'Baloo 2', sans-serif", fontWeight: 600, fontSize: "0.9rem", color: "oklch(0.65 0.02 240)", marginBottom: "-0.5rem" }}>
+          Nouveau code PIN
+        </label>
+        <input
+          type="password"
+          value={pinNouveau}
+          onChange={e => setPinNouveau(e.target.value.replace(/\D/g, ""))}
+          maxLength={8}
+          placeholder="Min. 4 chiffres"
+          style={styles.input}
+        />
+        <label style={{ fontFamily: "'Baloo 2', sans-serif", fontWeight: 600, fontSize: "0.9rem", color: "oklch(0.65 0.02 240)", marginBottom: "-0.5rem" }}>
+          Confirmer le nouveau PIN
+        </label>
+        <input
+          type="password"
+          value={pinConfirm}
+          onChange={e => setPinConfirm(e.target.value.replace(/\D/g, ""))}
+          maxLength={8}
+          placeholder="Répétez le nouveau PIN"
+          style={styles.input}
+        />
+        <button onClick={handleSavePin} style={styles.btnPrimary}>
+          🔐 Changer le PIN
+        </button>
+        {msgPin && (
+          <div style={{ fontFamily: "'Baloo 2', sans-serif", fontWeight: 700, color: msgPin.startsWith("✅") ? "#81C784" : "#EF9A9A" }}>
+            {msgPin}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ─── Page principale Admin ────────────────────────────────────────────────────
 export default function Admin() {
   const [, navigate] = useLocation();
@@ -761,61 +890,6 @@ export default function Admin() {
       );
     }
     return null;
-  }
-
-  // -- Onglet Parametres
-  function TabParametres() {
-    const { data, updateNomFoyer } = useData();
-    const [nomFoyer, setNomFoyer] = useState(data.nomFoyer);
-
-    function handleSave() {
-      updateNomFoyer(nomFoyer.trim());
-    }
-
-    return (
-      <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
-        <h3 style={{ fontFamily: "'Baloo 2', sans-serif", fontWeight: 800, fontSize: "1.3rem", color: "#FFD600", margin: 0 }}>
-          Parametres du Foyer
-        </h3>
-
-        <div style={{ display: "flex", flexDirection: "column", gap: "0.8rem", maxWidth: "500px" }}>
-          <label style={{ fontFamily: "'Baloo 2', sans-serif", fontWeight: 700, fontSize: "1rem", color: "#fff" }}>
-            Nom du foyer :
-          </label>
-          <input
-            type="text"
-            value={nomFoyer}
-            onChange={e => setNomFoyer(e.target.value)}
-            style={{
-              fontFamily: "'Baloo 2', sans-serif",
-              fontSize: "1rem",
-              padding: "0.8rem",
-              borderRadius: "0.5rem",
-              border: "2px solid oklch(0.35 0.04 240)",
-              background: "oklch(0.15 0.04 240)",
-              color: "#fff",
-            }}
-          />
-          <button
-            onClick={handleSave}
-            style={{
-              background: "#FFD600",
-              color: "#0D1B2A",
-              fontFamily: "'Baloo 2', sans-serif",
-              fontWeight: 800,
-              fontSize: "1rem",
-              border: "none",
-              borderRadius: "0.5rem",
-              padding: "0.8rem 1.5rem",
-              cursor: "pointer",
-              marginTop: "0.5rem",
-            }}
-          >
-            Enregistrer
-          </button>
-        </div>
-      </div>
-    );
   }
 
   const TABS: { id: AdminTab; label: string; icon: string }[] = [
