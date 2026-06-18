@@ -182,6 +182,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     async function loadAll() {
       setLoading(true);
+      try {
       const [
         { data: foyerData },
         { data: residentsData },
@@ -218,6 +219,10 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         nomFoyer: foyerData?.nom || 'Foyer — Borne Interactive',
       });
       setLoading(false);
+      } catch (err) {
+        console.error('Erreur chargement Supabase:', err);
+        setLoading(false);
+      }
     }
     loadAll();
   }, []);
