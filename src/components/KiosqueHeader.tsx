@@ -5,6 +5,7 @@
  */
 import { useEffect, useState } from "react";
 import { useLocation } from "wouter";
+import { useData } from "@/contexts/DataContext";
 
 const JOURS = ["Dimanche", "Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi"];
 const MOIS = [
@@ -24,6 +25,7 @@ interface KiosqueHeaderProps {
 export default function KiosqueHeader({ title, showBack = false }: KiosqueHeaderProps) {
   const [dateStr, setDateStr] = useState(() => formatDate(new Date()));
   const [, navigate] = useLocation();
+  const { data } = useData();
 
   useEffect(() => {
     // Mise à jour à minuit
@@ -100,7 +102,7 @@ export default function KiosqueHeader({ title, showBack = false }: KiosqueHeader
               color: "#FFD600",
             }}
           >
-            🏠 Foyer — Borne Interactive
+            🏠 {data.nomFoyer}
           </span>
         )}
       </div>
