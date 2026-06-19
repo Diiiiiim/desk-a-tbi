@@ -9,17 +9,35 @@ import PinDialog from "@/components/PinDialog";
 import PhotoCircle from "@/components/PhotoCircle";
 import { useData } from "@/contexts/DataContext";
 import type { Activite, Evenement, ModeleActivite } from "@/contexts/DataContext";
+import { supabase } from "@/lib/supabase";
 
 type AdminTab = "residents" | "educateurs" | "activites" | "evenements" | "modeles" | "menus" | "parametres";
 
-// ─── Utilitaire : lecture fichier → base64 ────────────────────────────────────
-function readFileAsDataURL(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result as string);
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-  });
+// ─── Utilitaire : upload fichier → Supabase Storage (bucket "media") ──────────
+// Retourne l'URL publique de l'image. Fallback en base64 si l'upload échoue.
+async function readFileAsDataURL(file: File): Promise<string> {
+  try {
+    const ext = file.name.split(".").pop() || "jpg";
+    const path = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+
+    const { error } = await supabase.storage.from("media").upload(path, file, {
+      cacheControl: "31536000",
+      upsert: false,
+    });
+
+    if (error) throw error;
+
+    const { data } = supabase.storage.from("media").getPublicUrl(path);
+    return data.publicUrl;
+  } catch (err) {
+    console.error("Upload Supabase Storage échoué, fallback base64 :", err);
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  }
 }
 
 // ─── Sous-composant : onglet Résidents ────────────────────────────────────────
@@ -745,20 +763,62 @@ const styles = {
 };
 
 // ─── Sous-composant : onglet Paramètres ──────────────────────────────────────
+interface VilleResult {
+  name: string;
+  admin1?: string;
+  country: string;
+  latitude: number;
+  longitude: number;
+}
+
 function TabParametres() {
-  const { data, updateNomFoyer, updateCodePin } = useData();
+  const { data, updateNomFoyer, updateCodePin, updateVille } = useData();
   const [nomFoyer, setNomFoyer] = useState(data.nomFoyer);
   const [pinActuel, setPinActuel] = useState("");
   const [pinNouveau, setPinNouveau] = useState("");
   const [pinConfirm, setPinConfirm] = useState("");
   const [msgNom, setMsgNom] = useState<string | null>(null);
   const [msgPin, setMsgPin] = useState<string | null>(null);
+  const [msgVille, setMsgVille] = useState<string | null>(null);
+  const [villeQuery, setVilleQuery] = useState(data.ville);
+  const [villeResults, setVilleResults] = useState<VilleResult[]>([]);
+  const [searchingVille, setSearchingVille] = useState(false);
 
   async function handleSaveNom() {
     if (!nomFoyer.trim()) return;
     await updateNomFoyer(nomFoyer.trim());
     setMsgNom("✅ Nom enregistré !");
     setTimeout(() => setMsgNom(null), 3000);
+  }
+
+  async function handleSearchVille() {
+    if (!villeQuery.trim()) return;
+    setSearchingVille(true);
+    setVilleResults([]);
+    try {
+      const res = await fetch(
+        `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(villeQuery)}&count=5&language=fr&format=json`
+      );
+      const json = await res.json();
+      setVilleResults(json.results || []);
+      if (!json.results || json.results.length === 0) {
+        setMsgVille("❌ Aucune ville trouvée");
+        setTimeout(() => setMsgVille(null), 3000);
+      }
+    } catch {
+      setMsgVille("❌ Erreur de recherche");
+      setTimeout(() => setMsgVille(null), 3000);
+    } finally {
+      setSearchingVille(false);
+    }
+  }
+
+  async function handleSelectVille(v: VilleResult) {
+    await updateVille(v.name, v.latitude, v.longitude);
+    setVilleQuery(v.name);
+    setVilleResults([]);
+    setMsgVille(`✅ Ville météo réglée sur ${v.name}`);
+    setTimeout(() => setMsgVille(null), 3000);
   }
 
   async function handleSavePin() {
@@ -818,6 +878,65 @@ function TabParametres() {
         {msgNom && (
           <div style={{ fontFamily: "'Baloo 2', sans-serif", fontWeight: 700, color: msgNom.startsWith("✅") ? "#81C784" : "#EF9A9A" }}>
             {msgNom}
+          </div>
+        )}
+      </div>
+
+      {/* Ville météo */}
+      <div style={cardStyle}>
+        <h4 style={{ fontFamily: "'Baloo 2', sans-serif", fontWeight: 700, fontSize: "1.1rem", color: "#fff", margin: 0 }}>
+          🌤️ Ville pour la météo
+        </h4>
+        <div style={{ display: "flex", gap: "0.6rem" }}>
+          <input
+            type="text"
+            value={villeQuery}
+            onChange={e => setVilleQuery(e.target.value)}
+            onKeyDown={e => e.key === "Enter" && handleSearchVille()}
+            style={{ ...styles.input, flex: 1 }}
+            placeholder="Ex: Bruxelles, Tournai..."
+          />
+          <button
+            onClick={handleSearchVille}
+            disabled={searchingVille}
+            style={{ ...styles.btnPrimary, paddingLeft: "1.2rem", paddingRight: "1.2rem" }}
+          >
+            {searchingVille ? "⏳" : "🔍"}
+          </button>
+        </div>
+
+        {villeResults.length > 0 && (
+          <div style={{ display: "flex", flexDirection: "column", gap: "0.4rem" }}>
+            {villeResults.map((v, i) => (
+              <button
+                key={i}
+                onClick={() => handleSelectVille(v)}
+                style={{
+                  textAlign: "left",
+                  background: "oklch(0.20 0.04 240)",
+                  border: "1px solid oklch(0.32 0.04 240)",
+                  borderRadius: "0.5rem",
+                  padding: "0.6rem 0.9rem",
+                  color: "#fff",
+                  fontFamily: "'Baloo 2', sans-serif",
+                  fontWeight: 600,
+                  fontSize: "0.95rem",
+                  cursor: "pointer",
+                }}
+              >
+                📍 {v.name}{v.admin1 ? `, ${v.admin1}` : ""} ({v.country})
+              </button>
+            ))}
+          </div>
+        )}
+
+        <div style={{ fontFamily: "'Baloo 2', sans-serif", fontWeight: 600, fontSize: "0.9rem", color: "oklch(0.65 0.02 240)" }}>
+          Ville actuelle : <strong style={{ color: "#FFD600" }}>{data.ville}</strong>
+        </div>
+
+        {msgVille && (
+          <div style={{ fontFamily: "'Baloo 2', sans-serif", fontWeight: 700, color: msgVille.startsWith("✅") ? "#81C784" : "#EF9A9A" }}>
+            {msgVille}
           </div>
         )}
       </div>

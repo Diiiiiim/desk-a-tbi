@@ -1,11 +1,13 @@
 /**
  * Page Météo — Borne Kiosque Éducative
  * Affiche les prévisions météo du jour avec créneaux horaires
+ * Ville/coordonnées configurables depuis l'Admin (Supabase: foyers.ville/meteo_lat/meteo_lon)
  * Utilise l'API Open-Meteo (gratuite, sans clé API)
  */
 import { useEffect, useState } from "react";
 import CommunicationBar from "@/components/CommunicationBar";
 import KiosqueHeader from "@/components/KiosqueHeader";
+import { supabase, FOYER_ID } from "@/lib/supabase";
 
 interface HourlyForecast {
   time: string;
@@ -43,30 +45,37 @@ export default function Meteo() {
   const [meteo, setMeteo] = useState<MeteoData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [ville, setVille] = useState("Peruwelz");
 
   useEffect(() => {
     async function fetchMeteo() {
       try {
         setLoading(true);
-        // Coordonnées de Peruwelz, Belgique
-        const lat = 50.3;
-        const lon = 3.6;
-        
+
+        // Récupérer la ville/coordonnées configurées pour ce foyer
+        const { data: foyerData } = await supabase
+          .from("foyers")
+          .select("ville, meteo_lat, meteo_lon")
+          .eq("id", FOYER_ID)
+          .single();
+
+        const lat = foyerData?.meteo_lat ?? 50.51;
+        const lon = foyerData?.meteo_lon ?? 3.59;
+        setVille(foyerData?.ville || "Peruwelz");
+
         const response = await fetch(
           `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m&hourly=temperature_2m,weather_code&daily=temperature_2m_max,temperature_2m_min,precipitation_sum,weather_code&timezone=Europe/Brussels`
         );
-        
+
         if (!response.ok) throw new Error("Erreur de connexion météo");
-        
+
         const data = await response.json();
         const current = data.current;
         const daily = data.daily;
         const hourly = data.hourly;
 
-        // Conversion du code météo WMO en description et emoji
         const { description, icon } = getWeatherDescription(current.weather_code);
 
-        // Créneaux horaires : 8-10h, 10-12h, 12-14h, 14-16h, 16-18h, 18-20h
         const timeSlots = [
           { start: 8, end: 10, label: "8h - 10h" },
           { start: 10, end: 12, label: "10h - 12h" },
@@ -77,28 +86,19 @@ export default function Meteo() {
         ];
 
         const hourlyForecasts = timeSlots.map(slot => {
-          // Moyenne des températures et code météo du créneau
-          const startIdx = slot.start;
-          const endIdx = slot.end;
-          const temps = hourly.temperature_2m.slice(startIdx, endIdx) as number[];
-          const codes = hourly.weather_code.slice(startIdx, endIdx) as number[];
-          
+          const temps = hourly.temperature_2m.slice(slot.start, slot.end) as number[];
+          const codes = hourly.weather_code.slice(slot.start, slot.end) as number[];
+
           const avgTemp = Math.round(temps.reduce((a: number, b: number) => a + b, 0) / temps.length);
-          const mostCommonCode = codes[Math.floor(codes.length / 2)]; // Code du milieu du créneau
+          const mostCommonCode = codes[Math.floor(codes.length / 2)];
           const { description: slotDesc, icon: slotIcon } = getWeatherDescription(mostCommonCode);
 
-          return {
-            time: slot.label,
-            temperature: avgTemp,
-            description: slotDesc,
-            icon: slotIcon,
-          };
+          return { time: slot.label, temperature: avgTemp, description: slotDesc, icon: slotIcon };
         });
 
         setMeteo({
           temperature: Math.round(current.temperature_2m),
-          description,
-          icon,
+          description, icon,
           humidity: current.relative_humidity_2m,
           windSpeed: Math.round(current.wind_speed_10m),
           tempMin: Math.round(daily.temperature_2m_min[0]),
@@ -116,7 +116,6 @@ export default function Meteo() {
     }
 
     fetchMeteo();
-    // Rafraîchir toutes les 30 minutes
     const interval = setInterval(fetchMeteo, 30 * 60 * 1000);
     return () => clearInterval(interval);
   }, []);
@@ -124,10 +123,8 @@ export default function Meteo() {
   return (
     <div
       style={{
-        width: "100vw",
-        height: "100vh",
-        display: "flex",
-        flexDirection: "column",
+        width: "100vw", height: "100vh",
+        display: "flex", flexDirection: "column",
         overflow: "hidden",
         background: "oklch(0.13 0.04 240)",
         position: "relative",
@@ -135,308 +132,71 @@ export default function Meteo() {
     >
       <div style={{ position: "absolute", inset: 0, background: "oklch(0.10 0.04 240 / 0.10)", zIndex: 0, pointerEvents: "none" }} />
       <div style={{ position: "relative", zIndex: 1, display: "flex", flexDirection: "column", height: "100%" }}>
-        <KiosqueHeader title="🌤️ Météo — Peruwelz" showBack />
+        <KiosqueHeader title={`🌤️ Météo — ${ville}`} showBack />
 
         <main
           className="page-enter"
           style={{
-            flex: 1,
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            justifyContent: "center",
-            padding: "1.5rem",
-            gap: "1.5rem",
-            overflow: "hidden",
+            flex: 1, display: "flex", flexDirection: "column",
+            alignItems: "center", justifyContent: "center",
+            padding: "1.5rem", gap: "1.5rem", overflow: "hidden",
           }}
         >
           {loading && (
-            <div
-              style={{
-                fontFamily: "'Baloo 2', sans-serif",
-                fontWeight: 600,
-                fontSize: "1.4rem",
-                color: "oklch(0.65 0.02 240)",
-              }}
-            >
+            <div style={{ fontFamily: "'Baloo 2', sans-serif", fontWeight: 600, fontSize: "1.4rem", color: "oklch(0.65 0.02 240)" }}>
               ⏳ Chargement de la météo...
             </div>
           )}
 
           {error && (
-            <div
-              style={{
-                fontFamily: "'Baloo 2', sans-serif",
-                fontWeight: 600,
-                fontSize: "1.2rem",
-                color: "#FF6B6B",
-                textAlign: "center",
-              }}
-            >
+            <div style={{ fontFamily: "'Baloo 2', sans-serif", fontWeight: 600, fontSize: "1.2rem", color: "#FF6B6B", textAlign: "center" }}>
               ⚠️ {error}
             </div>
           )}
 
           {meteo && (
             <>
-              {/* Prévisions horaires — CENTRE */}
-              <div
-                style={{
-                  width: "100%",
-                  maxWidth: "1200px",
-                  flex: 1,
-                  display: "flex",
-                  flexDirection: "column",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  gap: "1rem",
-                }}
-              >
-                <h3
-                  style={{
-                    fontFamily: "'Baloo 2', sans-serif",
-                    fontWeight: 800,
-                    fontSize: "1.8rem",
-                    color: "#FFD600",
-                    margin: 0,
-                  }}
-                >
+              <div style={{ width: "100%", maxWidth: "1200px", flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: "1rem" }}>
+                <h3 style={{ fontFamily: "'Baloo 2', sans-serif", fontWeight: 800, fontSize: "1.8rem", color: "#FFD600", margin: 0 }}>
                   📅 Prévisions horaires
                 </h3>
-                <div
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))",
-                    gap: "1rem",
-                    width: "100%",
-                  }}
-                >
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: "1rem", width: "100%" }}>
                   {meteo.hourly.map((slot, idx) => (
-                    <div
-                      key={idx}
-                      className="kiosque-card"
-                      style={{
-                        display: "flex",
-                        flexDirection: "column",
-                        alignItems: "center",
-                        gap: "0.8rem",
-                        padding: "1.2rem",
-                      }}
-                    >
-                      <div
-                        style={{
-                          fontFamily: "'Baloo 2', sans-serif",
-                          fontWeight: 700,
-                          fontSize: "1.1rem",
-                          color: "#FFD600",
-                        }}
-                      >
-                        {slot.time}
-                      </div>
+                    <div key={idx} className="kiosque-card" style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "0.8rem", padding: "1.2rem" }}>
+                      <div style={{ fontFamily: "'Baloo 2', sans-serif", fontWeight: 700, fontSize: "1.1rem", color: "#FFD600" }}>{slot.time}</div>
                       <div style={{ fontSize: "2.8rem" }}>{slot.icon}</div>
-                      <div
-                        style={{
-                          fontFamily: "'Baloo 2', sans-serif",
-                          fontWeight: 800,
-                          fontSize: "1.4rem",
-                          color: "#FFD600",
-                        }}
-                      >
-                        {slot.temperature}°C
-                      </div>
-                      <div
-                        style={{
-                          fontFamily: "'Baloo 2', sans-serif",
-                          fontWeight: 600,
-                          fontSize: "0.9rem",
-                          color: "oklch(0.75 0.02 240)",
-                          textAlign: "center",
-                        }}
-                      >
-                        {slot.description}
-                      </div>
+                      <div style={{ fontFamily: "'Baloo 2', sans-serif", fontWeight: 800, fontSize: "1.4rem", color: "#FFD600" }}>{slot.temperature}°C</div>
+                      <div style={{ fontFamily: "'Baloo 2', sans-serif", fontWeight: 600, fontSize: "0.9rem", color: "oklch(0.75 0.02 240)", textAlign: "center" }}>{slot.description}</div>
                     </div>
                   ))}
                 </div>
               </div>
 
-              {/* Précisions — BAS */}
-              <div
-                style={{
-                  width: "100%",
-                  maxWidth: "1200px",
-                  display: "grid",
-                  gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))",
-                  gap: "1rem",
-                  padding: "1rem",
-                  background: "oklch(0.15 0.04 240)",
-                  borderRadius: "1rem",
-                  borderTop: "2px solid oklch(0.35 0.04 240)",
-                }}
-              >
-                {/* Température actuelle */}
-                <div
-                  style={{
-                    display: "flex",
-                    flexDirection: "column",
-                    alignItems: "center",
-                    gap: "0.5rem",
-                  }}
-                >
+              <div style={{ width: "100%", maxWidth: "1200px", display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: "1rem", padding: "1rem", background: "oklch(0.15 0.04 240)", borderRadius: "1rem", borderTop: "2px solid oklch(0.35 0.04 240)" }}>
+                <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "0.5rem" }}>
                   <div style={{ fontSize: "2.5rem" }}>{meteo.icon}</div>
-                  <div
-                    style={{
-                      fontFamily: "'Baloo 2', sans-serif",
-                      fontWeight: 700,
-                      fontSize: "0.85rem",
-                      color: "oklch(0.65 0.02 240)",
-                      textTransform: "uppercase",
-                    }}
-                  >
-                    Actuel
-                  </div>
-                  <div
-                    style={{
-                      fontFamily: "'Baloo 2', sans-serif",
-                      fontWeight: 800,
-                      fontSize: "1.3rem",
-                      color: "#FFD600",
-                    }}
-                  >
-                    {meteo.temperature}°C
-                  </div>
+                  <div style={{ fontFamily: "'Baloo 2', sans-serif", fontWeight: 700, fontSize: "0.85rem", color: "oklch(0.65 0.02 240)", textTransform: "uppercase" }}>Actuel</div>
+                  <div style={{ fontFamily: "'Baloo 2', sans-serif", fontWeight: 800, fontSize: "1.3rem", color: "#FFD600" }}>{meteo.temperature}°C</div>
                 </div>
-
-                {/* Min/Max */}
-                <div
-                  style={{
-                    display: "flex",
-                    flexDirection: "column",
-                    alignItems: "center",
-                    gap: "0.5rem",
-                  }}
-                >
+                <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "0.5rem" }}>
                   <div style={{ fontSize: "2rem" }}>🌡️</div>
-                  <div
-                    style={{
-                      fontFamily: "'Baloo 2', sans-serif",
-                      fontWeight: 700,
-                      fontSize: "0.85rem",
-                      color: "oklch(0.65 0.02 240)",
-                      textTransform: "uppercase",
-                    }}
-                  >
-                    Températures
-                  </div>
-                  <div
-                    style={{
-                      fontFamily: "'Baloo 2', sans-serif",
-                      fontWeight: 800,
-                      fontSize: "1.3rem",
-                      color: "#FFD600",
-                    }}
-                  >
-                    {meteo.tempMin}° → {meteo.tempMax}°
-                  </div>
+                  <div style={{ fontFamily: "'Baloo 2', sans-serif", fontWeight: 700, fontSize: "0.85rem", color: "oklch(0.65 0.02 240)", textTransform: "uppercase" }}>Températures</div>
+                  <div style={{ fontFamily: "'Baloo 2', sans-serif", fontWeight: 800, fontSize: "1.3rem", color: "#FFD600" }}>{meteo.tempMin}° → {meteo.tempMax}°</div>
                 </div>
-
-                {/* Humidité */}
-                <div
-                  style={{
-                    display: "flex",
-                    flexDirection: "column",
-                    alignItems: "center",
-                    gap: "0.5rem",
-                  }}
-                >
+                <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "0.5rem" }}>
                   <div style={{ fontSize: "2rem" }}>💧</div>
-                  <div
-                    style={{
-                      fontFamily: "'Baloo 2', sans-serif",
-                      fontWeight: 700,
-                      fontSize: "0.85rem",
-                      color: "oklch(0.65 0.02 240)",
-                      textTransform: "uppercase",
-                    }}
-                  >
-                    Humidité
-                  </div>
-                  <div
-                    style={{
-                      fontFamily: "'Baloo 2', sans-serif",
-                      fontWeight: 800,
-                      fontSize: "1.3rem",
-                      color: "#FFD600",
-                    }}
-                  >
-                    {meteo.humidity}%
-                  </div>
+                  <div style={{ fontFamily: "'Baloo 2', sans-serif", fontWeight: 700, fontSize: "0.85rem", color: "oklch(0.65 0.02 240)", textTransform: "uppercase" }}>Humidité</div>
+                  <div style={{ fontFamily: "'Baloo 2', sans-serif", fontWeight: 800, fontSize: "1.3rem", color: "#FFD600" }}>{meteo.humidity}%</div>
                 </div>
-
-                {/* Vent */}
-                <div
-                  style={{
-                    display: "flex",
-                    flexDirection: "column",
-                    alignItems: "center",
-                    gap: "0.5rem",
-                  }}
-                >
+                <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "0.5rem" }}>
                   <div style={{ fontSize: "2rem" }}>💨</div>
-                  <div
-                    style={{
-                      fontFamily: "'Baloo 2', sans-serif",
-                      fontWeight: 700,
-                      fontSize: "0.85rem",
-                      color: "oklch(0.65 0.02 240)",
-                      textTransform: "uppercase",
-                    }}
-                  >
-                    Vent
-                  </div>
-                  <div
-                    style={{
-                      fontFamily: "'Baloo 2', sans-serif",
-                      fontWeight: 800,
-                      fontSize: "1.3rem",
-                      color: "#FFD600",
-                    }}
-                  >
-                    {meteo.windSpeed} km/h
-                  </div>
+                  <div style={{ fontFamily: "'Baloo 2', sans-serif", fontWeight: 700, fontSize: "0.85rem", color: "oklch(0.65 0.02 240)", textTransform: "uppercase" }}>Vent</div>
+                  <div style={{ fontFamily: "'Baloo 2', sans-serif", fontWeight: 800, fontSize: "1.3rem", color: "#FFD600" }}>{meteo.windSpeed} km/h</div>
                 </div>
-
-                {/* Précipitations */}
-                <div
-                  style={{
-                    display: "flex",
-                    flexDirection: "column",
-                    alignItems: "center",
-                    gap: "0.5rem",
-                  }}
-                >
+                <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "0.5rem" }}>
                   <div style={{ fontSize: "2rem" }}>🌧️</div>
-                  <div
-                    style={{
-                      fontFamily: "'Baloo 2', sans-serif",
-                      fontWeight: 700,
-                      fontSize: "0.85rem",
-                      color: "oklch(0.65 0.02 240)",
-                      textTransform: "uppercase",
-                    }}
-                  >
-                    Pluie
-                  </div>
-                  <div
-                    style={{
-                      fontFamily: "'Baloo 2', sans-serif",
-                      fontWeight: 800,
-                      fontSize: "1.3rem",
-                      color: "#FFD600",
-                    }}
-                  >
-                    {meteo.precipitation.toFixed(1)} mm
-                  </div>
+                  <div style={{ fontFamily: "'Baloo 2', sans-serif", fontWeight: 700, fontSize: "0.85rem", color: "oklch(0.65 0.02 240)", textTransform: "uppercase" }}>Pluie</div>
+                  <div style={{ fontFamily: "'Baloo 2', sans-serif", fontWeight: 800, fontSize: "1.3rem", color: "#FFD600" }}>{meteo.precipitation.toFixed(1)} mm</div>
                 </div>
               </div>
             </>

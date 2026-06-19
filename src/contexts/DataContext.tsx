@@ -68,6 +68,9 @@ export interface AppData {
   menus: { midi: Menu; soir: Menu };
   nomFoyer: string;
   codePin: string;
+  ville: string;
+  meteoLat: number;
+  meteoLon: number;
 }
 
 // ─── Convertisseurs DB → App (snake_case → camelCase) ─────────────────────────
@@ -120,6 +123,7 @@ interface DataContextType {
   updateMenu: (type: 'midi' | 'soir', updates: Partial<Menu>) => Promise<void>;
   updateNomFoyer: (nom: string) => Promise<void>;
   updateCodePin: (pin: string) => Promise<void>;
+  updateVille: (ville: string, lat: number, lon: number) => Promise<void>;
   resetData: () => void;
 }
 
@@ -133,6 +137,9 @@ const DEFAULT_APP_DATA: AppData = {
   menus: { midi: DEFAULT_MENU, soir: DEFAULT_MENU },
   nomFoyer: 'Foyer — Borne Interactive',
   codePin: '1234',
+  ville: 'Peruwelz',
+  meteoLat: 50.51,
+  meteoLon: 3.59,
 };
 
 // IDs menus du jour (pour upsert)
@@ -221,6 +228,9 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         },
         nomFoyer: foyerData?.nom || 'Foyer — Borne Interactive',
         codePin: foyerData?.code_pin || '1234',
+        ville: foyerData?.ville || 'Peruwelz',
+        meteoLat: foyerData?.meteo_lat ?? 50.51,
+        meteoLon: foyerData?.meteo_lon ?? 3.59,
       });
       setLoading(false);
       } catch (err) {
@@ -386,6 +396,11 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     setAppData(prev => ({ ...prev, codePin: pin }));
   }, []);
 
+  const updateVille = useCallback(async (ville: string, lat: number, lon: number) => {
+    await supabase.from('foyers').update({ ville, meteo_lat: lat, meteo_lon: lon }).eq('id', FOYER_ID);
+    setAppData(prev => ({ ...prev, ville, meteoLat: lat, meteoLon: lon }));
+  }, []);
+
   const updateNomFoyer = useCallback(async (nom: string) => {
     await supabase.from('foyers').update({ nom }).eq('id', FOYER_ID);
     setAppData(prev => ({ ...prev, nomFoyer: nom }));
@@ -406,6 +421,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       updateMenu,
       updateNomFoyer,
       updateCodePin,
+      updateVille,
       resetData,
     }}>
       {children}

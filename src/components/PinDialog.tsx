@@ -1,10 +1,9 @@
 /**
  * PinDialog — Saisie du code PIN pour accès administration
- * Clavier numérique tactile, code PIN par défaut : 1234
+ * Vérifie le PIN contre Supabase (table foyers)
  */
 import { useState } from "react";
-
-const PIN_CODE = "1234";
+import { supabase, FOYER_ID } from "@/lib/supabase";
 
 interface PinDialogProps {
   onSuccess: () => void;
@@ -15,14 +14,19 @@ export default function PinDialog({ onSuccess, onCancel }: PinDialogProps) {
   const [input, setInput] = useState("");
   const [error, setError] = useState(false);
   const [shake, setShake] = useState(false);
+  const [checking, setChecking] = useState(false);
 
-  function handleDigit(d: string) {
-    if (input.length >= 4) return;
-    const next = input + d;
-    setInput(next);
-    setError(false);
-    if (next.length === 4) {
-      if (next === PIN_CODE) {
+  async function checkPin(pin: string) {
+    setChecking(true);
+    try {
+      const { data } = await supabase
+        .from("foyers")
+        .select("code_pin")
+        .eq("id", FOYER_ID)
+        .single();
+
+      const correct = data?.code_pin || "1234";
+      if (pin === correct) {
         onSuccess();
       } else {
         setShake(true);
@@ -32,7 +36,25 @@ export default function PinDialog({ onSuccess, onCancel }: PinDialogProps) {
           setShake(false);
         }, 700);
       }
+    } catch {
+      // Fallback si Supabase inaccessible
+      if (pin === "1234") {
+        onSuccess();
+      } else {
+        setShake(true);
+        setError(true);
+        setTimeout(() => { setInput(""); setShake(false); }, 700);
+      }
+    } finally {
+      setChecking(false);
     }
+  }
+
+  function handleDigit(d: string) {
+    if (input.length >= 8 || checking) return;
+    const next = input + d;
+    setInput(next);
+    setError(false);
   }
 
   function handleDelete() {
@@ -40,7 +62,25 @@ export default function PinDialog({ onSuccess, onCancel }: PinDialogProps) {
     setError(false);
   }
 
+  async function handleConfirm() {
+    if (input.length < 4 || checking) return;
+    await checkPin(input);
+  }
+
   const digits = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0"];
+
+  const btnStyle = {
+    width: 80, height: 80,
+    borderRadius: "0.75rem",
+    background: "oklch(0.22 0.04 240)",
+    border: "2px solid oklch(0.35 0.04 240)",
+    color: "#fff",
+    fontFamily: "'Baloo 2', sans-serif",
+    fontWeight: 800,
+    fontSize: "1.8rem",
+    cursor: "pointer",
+    transition: "transform 100ms, background 100ms",
+  } as React.CSSProperties;
 
   return (
     <div className="pin-overlay">
@@ -69,26 +109,17 @@ export default function PinDialog({ onSuccess, onCancel }: PinDialogProps) {
           }
         `}</style>
 
-        {/* Titre */}
-        <div
-          style={{
-            fontFamily: "'Baloo 2', sans-serif",
-            fontWeight: 800,
-            fontSize: "1.6rem",
-            color: "#FFD600",
-          }}
-        >
+        <div style={{ fontFamily: "'Baloo 2', sans-serif", fontWeight: 800, fontSize: "1.6rem", color: "#FFD600" }}>
           🔐 Code PIN
         </div>
 
-        {/* Indicateur de saisie */}
-        <div style={{ display: "flex", gap: "1rem" }}>
-          {[0, 1, 2, 3].map(i => (
+        {/* Indicateur de saisie — jusqu'à 8 chiffres */}
+        <div style={{ display: "flex", gap: "0.6rem" }}>
+          {Array.from({ length: Math.max(input.length, 4) }).map((_, i) => (
             <div
               key={i}
               style={{
-                width: 20,
-                height: 20,
+                width: 16, height: 16,
                 borderRadius: "50%",
                 background: i < input.length
                   ? (error ? "#C62828" : "#FFD600")
@@ -100,44 +131,18 @@ export default function PinDialog({ onSuccess, onCancel }: PinDialogProps) {
         </div>
 
         {error && (
-          <div
-            style={{
-              fontFamily: "'Baloo 2', sans-serif",
-              fontWeight: 700,
-              fontSize: "1rem",
-              color: "#EF9A9A",
-            }}
-          >
+          <div style={{ fontFamily: "'Baloo 2', sans-serif", fontWeight: 700, fontSize: "1rem", color: "#EF9A9A" }}>
             Code incorrect. Réessayez.
           </div>
         )}
 
         {/* Clavier numérique */}
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(3, 1fr)",
-            gap: "0.75rem",
-          }}
-        >
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "0.75rem" }}>
           {digits.map(d => (
             <button
               key={d}
               onClick={() => handleDigit(d)}
-              style={{
-                width: 80,
-                height: 80,
-                borderRadius: "0.75rem",
-                background: "oklch(0.22 0.04 240)",
-                border: "2px solid oklch(0.35 0.04 240)",
-                color: "#fff",
-                fontFamily: "'Baloo 2', sans-serif",
-                fontWeight: 800,
-                fontSize: "1.8rem",
-                cursor: "pointer",
-                transition: "transform 100ms, background 100ms",
-                gridColumn: d === "0" ? "2 / 3" : undefined,
-              }}
+              style={{ ...btnStyle, gridColumn: d === "0" ? "2 / 3" : undefined }}
               onPointerDown={e => {
                 (e.currentTarget as HTMLButtonElement).style.transform = "scale(0.92)";
                 (e.currentTarget as HTMLButtonElement).style.background = "oklch(0.30 0.04 240)";
@@ -152,20 +157,38 @@ export default function PinDialog({ onSuccess, onCancel }: PinDialogProps) {
           ))}
         </div>
 
-        {/* Boutons action */}
+        {/* Bouton Valider (apparaît dès 4 chiffres) */}
+        {input.length >= 4 && (
+          <button
+            onClick={handleConfirm}
+            disabled={checking}
+            style={{
+              width: "100%", height: 56,
+              borderRadius: "0.75rem",
+              background: checking ? "oklch(0.35 0.04 240)" : "#FFD600",
+              border: "none",
+              color: "#0D1B2A",
+              fontFamily: "'Baloo 2', sans-serif",
+              fontWeight: 800,
+              fontSize: "1.1rem",
+              cursor: checking ? "wait" : "pointer",
+            }}
+          >
+            {checking ? "⏳ Vérification..." : "✅ Valider"}
+          </button>
+        )}
+
         <div style={{ display: "flex", gap: "1rem", width: "100%" }}>
           <button
             onClick={handleDelete}
             style={{
-              flex: 1,
-              height: 56,
+              flex: 1, height: 56,
               borderRadius: "0.75rem",
               background: "oklch(0.22 0.04 240)",
               border: "2px solid oklch(0.35 0.04 240)",
               color: "#fff",
               fontFamily: "'Baloo 2', sans-serif",
-              fontWeight: 700,
-              fontSize: "1.1rem",
+              fontWeight: 700, fontSize: "1.1rem",
               cursor: "pointer",
             }}
           >
@@ -174,15 +197,12 @@ export default function PinDialog({ onSuccess, onCancel }: PinDialogProps) {
           <button
             onClick={onCancel}
             style={{
-              flex: 1,
-              height: 56,
+              flex: 1, height: 56,
               borderRadius: "0.75rem",
               background: "#C62828",
-              border: "none",
-              color: "#fff",
+              border: "none", color: "#fff",
               fontFamily: "'Baloo 2', sans-serif",
-              fontWeight: 700,
-              fontSize: "1.1rem",
+              fontWeight: 700, fontSize: "1.1rem",
               cursor: "pointer",
             }}
           >
