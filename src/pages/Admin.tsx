@@ -572,57 +572,69 @@ function TabModeles() {
   );
 }
 
+type MenuField = "imageRepas" | "imageFeculent" | "imageLegume" | "imageAccompagnement" | "imageDessert";
+
+const MENU_CATEGORIES: { field: MenuField; label: string; emoji: string; optional: boolean }[] = [
+  { field: "imageRepas", label: "Plat principal", emoji: "🍖", optional: false },
+  { field: "imageFeculent", label: "Féculent", emoji: "🍚", optional: true },
+  { field: "imageLegume", label: "Légume", emoji: "🥦", optional: true },
+  { field: "imageAccompagnement", label: "Accompagnement", emoji: "🥗", optional: true },
+  { field: "imageDessert", label: "Dessert", emoji: "🍮", optional: true },
+];
+
 function TabMenus() {
   const { data, updateMenu } = useData();
-  const fileRefs = {
-    midiRepas: useRef<HTMLInputElement>(null),
-    midiDessert: useRef<HTMLInputElement>(null),
-    soirRepas: useRef<HTMLInputElement>(null),
-    soirDessert: useRef<HTMLInputElement>(null),
-  };
 
-  async function handleImg(type: "midi" | "soir", field: "imageRepas" | "imageDessert", e: React.ChangeEvent<HTMLInputElement>) {
+  async function handleImg(type: "midi" | "soir", field: MenuField, e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (file) updateMenu(type, { [field]: await readFileAsDataURL(file) });
+    e.target.value = "";
+  }
+
+  function CategorySlot({ type, field, label, emoji, optional }: { type: "midi" | "soir"; field: MenuField; label: string; emoji: string; optional: boolean }) {
+    const menu = data.menus[type];
+    const imageUrl = menu[field];
+    const inputId = `menu-${type}-${field}`;
+
+    return (
+      <div style={{ flex: "1 1 180px", minWidth: 160, display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+        <div style={styles.subLabel}>{emoji} {label}{optional ? " (optionnel)" : ""}</div>
+        {imageUrl ? (
+          <img src={imageUrl} alt={label} style={{ width: "100%", height: 110, objectFit: "cover", borderRadius: "0.75rem" }} />
+        ) : (
+          <div style={{ width: "100%", height: 110, borderRadius: "0.75rem", background: "oklch(0.20 0.04 240)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "2rem", color: "oklch(0.40 0.04 240)" }}>
+            {emoji}
+          </div>
+        )}
+        <label htmlFor={inputId} style={{ ...styles.btnSecondary, textAlign: "center", display: "block", cursor: "pointer" }}>
+          📷 {imageUrl ? "Changer" : "Ajouter"}
+        </label>
+        <input id={inputId} type="file" accept="image/*" style={{ display: "none" }} onChange={e => handleImg(type, field, e)} />
+        {optional && imageUrl && (
+          <button style={styles.btnDanger} onClick={() => updateMenu(type, { [field]: "" })}>🗑️ Retirer</button>
+        )}
+      </div>
+    );
   }
 
   function MenuSection({ type, label }: { type: "midi" | "soir"; label: string }) {
     const menu = data.menus[type];
     return (
-      <div className="kiosque-card" style={{ flex: 1, display: "flex", flexDirection: "column", gap: "1rem" }}>
+      <div className="kiosque-card" style={{ flex: 1, display: "flex", flexDirection: "column", gap: "1rem", minWidth: 0 }}>
         <h3 style={{ ...styles.formTitle, color: type === "midi" ? "#81C784" : "#CE93D8" }}>{label}</h3>
 
-        <div style={{ display: "flex", gap: "1rem", alignItems: "flex-start" }}>
-          {/* Repas principal */}
-          <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: "0.5rem" }}>
-            <div style={styles.subLabel}>Plat principal</div>
-            {menu.imageRepas && <img src={menu.imageRepas} alt="repas" style={{ width: "100%", height: 140, objectFit: "cover", borderRadius: "0.75rem" }} />}
-            <button style={styles.btnSecondary} onClick={() => fileRefs[`${type}Repas` as keyof typeof fileRefs].current?.click()}>
-              📷 Changer l'image
-            </button>
-            <input ref={fileRefs[`${type}Repas` as keyof typeof fileRefs]} type="file" accept="image/*" style={{ display: "none" }} onChange={e => handleImg(type, "imageRepas", e)} />
-          </div>
-
-          {/* Dessert */}
-          <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: "0.5rem" }}>
-            <div style={styles.subLabel}>Dessert (optionnel)</div>
-            {menu.imageDessert && <img src={menu.imageDessert} alt="dessert" style={{ width: "100%", height: 140, objectFit: "cover", borderRadius: "0.75rem" }} />}
-            <button style={styles.btnSecondary} onClick={() => fileRefs[`${type}Dessert` as keyof typeof fileRefs].current?.click()}>
-              📷 {menu.imageDessert ? "Changer" : "Ajouter"} dessert
-            </button>
-            <input ref={fileRefs[`${type}Dessert` as keyof typeof fileRefs]} type="file" accept="image/*" style={{ display: "none" }} onChange={e => handleImg(type, "imageDessert", e)} />
-            {menu.imageDessert && (
-              <button style={styles.btnDanger} onClick={() => updateMenu(type, { imageDessert: "" })}>🗑️ Retirer dessert</button>
-            )}
-          </div>
+        <div style={{ display: "flex", gap: "0.8rem", flexWrap: "wrap" }}>
+          {MENU_CATEGORIES.map(cat => (
+            <CategorySlot key={cat.field} type={type} field={cat.field} label={cat.label} emoji={cat.emoji} optional={cat.optional} />
+          ))}
         </div>
 
         {/* Description */}
         <div>
-          <div style={styles.subLabel}>Description du repas</div>
+          <div style={styles.subLabel}>Description du repas (lue à voix haute)</div>
           <textarea
             style={{...styles.input, minHeight: "80px", resize: "vertical"}}
-            placeholder="Ex : Poulet rôti, haricots verts..."
+            placeholder="Ex : Poulet rôti, riz, haricots verts, compote..."
             value={menu.description}
             onChange={e => updateMenu(type, { description: e.target.value })}
           />
@@ -632,7 +644,7 @@ function TabMenus() {
   }
 
   return (
-    <div style={{ display: "flex", gap: "1.5rem", height: "100%", overflow: "hidden" }}>
+    <div style={{ display: "flex", gap: "1.5rem", height: "100%", overflowY: "auto", flexWrap: "wrap" }}>
       <MenuSection type="midi" label="🍽️ Menu du midi" />
       <MenuSection type="soir" label="🌙 Menu du soir" />
     </div>
@@ -792,21 +804,32 @@ function TabParametres() {
   }
 
   async function handleSearchVille() {
-    if (!villeQuery.trim()) return;
+    const q = villeQuery.trim();
+    if (!q) return;
     setSearchingVille(true);
     setVilleResults([]);
     try {
-      const res = await fetch(
-        `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(villeQuery)}&count=5&language=fr&format=json`
+      // 1ère tentative en français
+      let res = await fetch(
+        `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(q)}&count=8&language=fr&format=json`
       );
-      const json = await res.json();
+      let json = await res.json();
+
+      // Fallback : si rien trouvé en français, on retente sans paramètre de langue
+      if (!json.results || json.results.length === 0) {
+        res = await fetch(
+          `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(q)}&count=8&format=json`
+        );
+        json = await res.json();
+      }
+
       setVilleResults(json.results || []);
       if (!json.results || json.results.length === 0) {
-        setMsgVille("❌ Aucune ville trouvée");
-        setTimeout(() => setMsgVille(null), 3000);
+        setMsgVille("❌ Aucune ville trouvée — essayez avec moins de lettres ou sans accent");
+        setTimeout(() => setMsgVille(null), 4000);
       }
     } catch {
-      setMsgVille("❌ Erreur de recherche");
+      setMsgVille("❌ Erreur de connexion au service météo");
       setTimeout(() => setMsgVille(null), 3000);
     } finally {
       setSearchingVille(false);
@@ -887,21 +910,22 @@ function TabParametres() {
         <h4 style={{ fontFamily: "'Baloo 2', sans-serif", fontWeight: 700, fontSize: "1.1rem", color: "#fff", margin: 0 }}>
           🌤️ Ville pour la météo
         </h4>
-        <div style={{ display: "flex", gap: "0.6rem" }}>
+        <div style={{ display: "flex", gap: "0.6rem", width: "100%" }}>
           <input
             type="text"
             value={villeQuery}
             onChange={e => setVilleQuery(e.target.value)}
             onKeyDown={e => e.key === "Enter" && handleSearchVille()}
-            style={{ ...styles.input, flex: 1 }}
-            placeholder="Ex: Bruxelles, Tournai..."
+            style={{ ...styles.input, flex: "1 1 auto", minWidth: 0, width: "auto", fontSize: "1.1rem" }}
+            placeholder="Ex: Bruxelles, Tournai, Mons..."
+            autoComplete="off"
           />
           <button
             onClick={handleSearchVille}
             disabled={searchingVille}
-            style={{ ...styles.btnPrimary, paddingLeft: "1.2rem", paddingRight: "1.2rem" }}
+            style={{ ...styles.btnPrimary, flex: "0 0 auto", width: "auto", paddingLeft: "1.4rem", paddingRight: "1.4rem" }}
           >
-            {searchingVille ? "⏳" : "🔍"}
+            {searchingVille ? "⏳" : "🔍 Chercher"}
           </button>
         </div>
 

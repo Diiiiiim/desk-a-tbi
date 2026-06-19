@@ -44,6 +44,9 @@ export interface Evenement {
 
 export interface Menu {
   imageRepas: string;
+  imageFeculent: string;
+  imageLegume: string;
+  imageAccompagnement: string;
   imageDessert: string;
   description: string;
 }
@@ -96,7 +99,14 @@ function dbToModele(m: any): ModeleActivite {
 }
 
 function dbToMenu(m: any): Menu {
-  return { imageRepas: m.image_repas_url || '', imageDessert: m.image_dessert_url || '', description: m.description || '' };
+  return {
+    imageRepas: m.image_repas_url || '',
+    imageFeculent: m.image_feculent_url || '',
+    imageLegume: m.image_legume_url || '',
+    imageAccompagnement: m.image_accompagnement_url || '',
+    imageDessert: m.image_dessert_url || '',
+    description: m.description || '',
+  };
 }
 
 // ─── Context ──────────────────────────────────────────────────────────────────
@@ -131,7 +141,7 @@ const DataContext = createContext<DataContextType | null>(null);
 
 const today = new Date().toISOString().split('T')[0];
 
-const DEFAULT_MENU: Menu = { imageRepas: '', imageDessert: '', description: '' };
+const DEFAULT_MENU: Menu = { imageRepas: '', imageFeculent: '', imageLegume: '', imageAccompagnement: '', imageDessert: '', description: '' };
 const DEFAULT_APP_DATA: AppData = {
   residents: [], educateurs: [], activites: [], evenements: [], modeles: [],
   menus: { midi: DEFAULT_MENU, soir: DEFAULT_MENU },
@@ -371,6 +381,9 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   const updateMenu = useCallback(async (type: 'midi' | 'soir', updates: Partial<Menu>) => {
     const dbUpdates: any = {};
     if (updates.imageRepas !== undefined) dbUpdates.image_repas_url = updates.imageRepas;
+    if (updates.imageFeculent !== undefined) dbUpdates.image_feculent_url = updates.imageFeculent;
+    if (updates.imageLegume !== undefined) dbUpdates.image_legume_url = updates.imageLegume;
+    if (updates.imageAccompagnement !== undefined) dbUpdates.image_accompagnement_url = updates.imageAccompagnement;
     if (updates.imageDessert !== undefined) dbUpdates.image_dessert_url = updates.imageDessert;
     if (updates.description !== undefined) dbUpdates.description = updates.description;
 
@@ -380,7 +393,8 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     } else {
       const { data } = await supabase.from('menus').upsert({
         foyer_id: FOYER_ID, type, date_menu: today,
-        image_repas_url: '', image_dessert_url: '', description: '',
+        image_repas_url: '', image_feculent_url: '', image_legume_url: '',
+        image_accompagnement_url: '', image_dessert_url: '', description: '',
         ...dbUpdates,
       }, { onConflict: 'foyer_id,type,date_menu' }).select().single();
       if (data) {
