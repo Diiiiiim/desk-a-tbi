@@ -582,71 +582,94 @@ const MENU_CATEGORIES: { field: MenuField; label: string; emoji: string; optiona
   { field: "imageDessert", label: "Dessert", emoji: "🍮", optional: true },
 ];
 
-function TabMenus() {
-  const { data, updateMenu } = useData();
+type MenuData = ReturnType<typeof useData>["data"]["menus"];
+type UpdateMenuFn = ReturnType<typeof useData>["updateMenu"];
 
-  async function handleImg(type: "midi" | "soir", field: MenuField, e: React.ChangeEvent<HTMLInputElement>) {
+// ─── Sous-composant externe : un slot d'image (photo + bouton) ───────────────
+function CategorySlot({
+  type, field, label, emoji, optional, menus, updateMenu,
+}: {
+  type: "midi" | "soir"; field: MenuField; label: string; emoji: string; optional: boolean;
+  menus: MenuData; updateMenu: UpdateMenuFn;
+}) {
+  const menu = menus[type];
+  const imageUrl = menu[field];
+  const inputId = `menu-${type}-${field}`;
+
+  async function handleImg(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (file) updateMenu(type, { [field]: await readFileAsDataURL(file) });
     e.target.value = "";
   }
 
-  function CategorySlot({ type, field, label, emoji, optional }: { type: "midi" | "soir"; field: MenuField; label: string; emoji: string; optional: boolean }) {
-    const menu = data.menus[type];
-    const imageUrl = menu[field];
-    const inputId = `menu-${type}-${field}`;
-
-    return (
-      <div style={{ flex: "1 1 180px", minWidth: 160, display: "flex", flexDirection: "column", gap: "0.5rem" }}>
-        <div style={styles.subLabel}>{emoji} {label}{optional ? " (optionnel)" : ""}</div>
-        {imageUrl ? (
-          <img src={imageUrl} alt={label} style={{ width: "100%", height: 110, objectFit: "cover", borderRadius: "0.75rem" }} />
-        ) : (
-          <div style={{ width: "100%", height: 110, borderRadius: "0.75rem", background: "oklch(0.20 0.04 240)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "2rem", color: "oklch(0.40 0.04 240)" }}>
-            {emoji}
-          </div>
-        )}
-        <label htmlFor={inputId} style={{ ...styles.btnSecondary, textAlign: "center", display: "block", cursor: "pointer" }}>
-          📷 {imageUrl ? "Changer" : "Ajouter"}
-        </label>
-        <input id={inputId} type="file" accept="image/*" style={{ display: "none" }} onChange={e => handleImg(type, field, e)} />
-        {optional && imageUrl && (
-          <button style={styles.btnDanger} onClick={() => updateMenu(type, { [field]: "" })}>🗑️ Retirer</button>
-        )}
-      </div>
-    );
-  }
-
-  function MenuSection({ type, label }: { type: "midi" | "soir"; label: string }) {
-    const menu = data.menus[type];
-    return (
-      <div className="kiosque-card" style={{ flex: 1, display: "flex", flexDirection: "column", gap: "1rem", minWidth: 0 }}>
-        <h3 style={{ ...styles.formTitle, color: type === "midi" ? "#81C784" : "#CE93D8" }}>{label}</h3>
-
-        <div style={{ display: "flex", gap: "0.8rem", flexWrap: "wrap" }}>
-          {MENU_CATEGORIES.map(cat => (
-            <CategorySlot key={cat.field} type={type} field={cat.field} label={cat.label} emoji={cat.emoji} optional={cat.optional} />
-          ))}
+  return (
+    <div style={{ flex: "1 1 180px", minWidth: 160, display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+      <div style={styles.subLabel}>{emoji} {label}{optional ? " (optionnel)" : ""}</div>
+      {imageUrl ? (
+        <img src={imageUrl} alt={label} style={{ width: "100%", height: 110, objectFit: "cover", borderRadius: "0.75rem" }} />
+      ) : (
+        <div style={{ width: "100%", height: 110, borderRadius: "0.75rem", background: "oklch(0.20 0.04 240)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "2rem", color: "oklch(0.40 0.04 240)" }}>
+          {emoji}
         </div>
+      )}
+      <label htmlFor={inputId} style={{ ...styles.btnSecondary, textAlign: "center", display: "block", cursor: "pointer" }}>
+        📷 {imageUrl ? "Changer" : "Ajouter"}
+      </label>
+      <input id={inputId} type="file" accept="image/*" style={{ display: "none" }} onChange={handleImg} />
+      {optional && imageUrl && (
+        <button style={styles.btnDanger} onClick={() => updateMenu(type, { [field]: "" })}>🗑️ Retirer</button>
+      )}
+    </div>
+  );
+}
 
-        {/* Description */}
-        <div>
-          <div style={styles.subLabel}>Description du repas (lue à voix haute)</div>
-          <textarea
-            style={{...styles.input, minHeight: "80px", resize: "vertical"}}
-            placeholder="Ex : Poulet rôti, riz, haricots verts, compote..."
-            value={menu.description}
-            onChange={e => updateMenu(type, { description: e.target.value })}
+// ─── Sous-composant externe : une section menu complète (midi ou soir) ───────
+function MenuSection({
+  type, label, menus, updateMenu,
+}: {
+  type: "midi" | "soir"; label: string; menus: MenuData; updateMenu: UpdateMenuFn;
+}) {
+  const menu = menus[type];
+  return (
+    <div className="kiosque-card" style={{ flex: 1, display: "flex", flexDirection: "column", gap: "1rem", minWidth: 0 }}>
+      <h3 style={{ ...styles.formTitle, color: type === "midi" ? "#81C784" : "#CE93D8" }}>{label}</h3>
+
+      <div style={{ display: "flex", gap: "0.8rem", flexWrap: "wrap" }}>
+        {MENU_CATEGORIES.map(cat => (
+          <CategorySlot
+            key={cat.field}
+            type={type}
+            field={cat.field}
+            label={cat.label}
+            emoji={cat.emoji}
+            optional={cat.optional}
+            menus={menus}
+            updateMenu={updateMenu}
           />
-        </div>
+        ))}
       </div>
-    );
-  }
+
+      {/* Description */}
+      <div>
+        <div style={styles.subLabel}>Description du repas (lue à voix haute)</div>
+        <textarea
+          style={{...styles.input, minHeight: "80px", resize: "vertical"}}
+          placeholder="Ex : Poulet rôti, riz, haricots verts, compote..."
+          value={menu.description}
+          onChange={e => updateMenu(type, { description: e.target.value })}
+        />
+      </div>
+    </div>
+  );
+}
+
+function TabMenus() {
+  const { data, updateMenu } = useData();
 
   return (
     <div style={{ display: "flex", gap: "1.5rem", height: "100%", overflowY: "auto", flexWrap: "wrap" }}>
-      <MenuSection type="midi" label="🍽️ Menu du midi" />
-      <MenuSection type="soir" label="🌙 Menu du soir" />
+      <MenuSection type="midi" label="🍽️ Menu du midi" menus={data.menus} updateMenu={updateMenu} />
+      <MenuSection type="soir" label="🌙 Menu du soir" menus={data.menus} updateMenu={updateMenu} />
     </div>
   );
 }
