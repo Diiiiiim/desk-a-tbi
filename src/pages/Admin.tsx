@@ -797,6 +797,59 @@ const styles = {
   } as React.CSSProperties,
 };
 
+// ─── Sous-composant : interrupteur on/off pour un widget de l'accueil ────────
+// Conçu pour être réutilisé facilement pour de futurs widgets.
+function WidgetToggleRow({
+  emoji, label, checked, onChange,
+}: { emoji: string; label: string; checked: boolean; onChange: (v: boolean) => void }) {
+  return (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+        background: "oklch(0.20 0.04 240)",
+        border: "1px solid oklch(0.32 0.04 240)",
+        borderRadius: "0.6rem",
+        padding: "0.7rem 1rem",
+      }}
+    >
+      <span style={{ fontFamily: "'Baloo 2', sans-serif", fontWeight: 700, fontSize: "1rem", color: "#fff" }}>
+        {emoji} {label}
+      </span>
+      <button
+        onClick={() => onChange(!checked)}
+        style={{
+          width: 56,
+          height: 30,
+          borderRadius: 999,
+          border: "none",
+          background: checked ? "#4CAF50" : "oklch(0.32 0.04 240)",
+          position: "relative",
+          cursor: "pointer",
+          transition: "background 150ms",
+          flexShrink: 0,
+        }}
+        aria-label={`${checked ? "Désactiver" : "Activer"} le widget ${label}`}
+      >
+        <span
+          style={{
+            position: "absolute",
+            top: 3,
+            left: checked ? 29 : 3,
+            width: 24,
+            height: 24,
+            borderRadius: "50%",
+            background: "#fff",
+            transition: "left 150ms",
+            boxShadow: "0 1px 3px rgba(0,0,0,0.3)",
+          }}
+        />
+      </button>
+    </div>
+  );
+}
+
 // ─── Sous-composant : onglet Paramètres ──────────────────────────────────────
 interface VilleResult {
   name: string;
@@ -807,7 +860,7 @@ interface VilleResult {
 }
 
 function TabParametres() {
-  const { data, updateNomFoyer, updateCodePin, updateVille } = useData();
+  const { data, updateNomFoyer, updateCodePin, updateVille, updateWidgets } = useData();
   const [nomFoyer, setNomFoyer] = useState(data.nomFoyer);
   const [pinActuel, setPinActuel] = useState("");
   const [pinNouveau, setPinNouveau] = useState("");
@@ -986,6 +1039,29 @@ function TabParametres() {
             {msgVille}
           </div>
         )}
+      </div>
+
+      {/* Widgets de l'accueil */}
+      <div style={cardStyle}>
+        <h4 style={{ fontFamily: "'Baloo 2', sans-serif", fontWeight: 700, fontSize: "1.1rem", color: "#fff", margin: 0 }}>
+          🧩 Widgets de l'accueil
+        </h4>
+        <p style={{ fontFamily: "'Baloo 2', sans-serif", fontWeight: 500, fontSize: "0.85rem", color: "oklch(0.60 0.02 240)", margin: 0 }}>
+          Active ou désactive les widgets affichés sur l'écran d'accueil.
+        </p>
+
+        <WidgetToggleRow
+          emoji="🌤️"
+          label="Météo"
+          checked={data.widgetMeteoActif}
+          onChange={v => updateWidgets({ widgetMeteoActif: v })}
+        />
+        <WidgetToggleRow
+          emoji="🎂"
+          label="Anniversaires"
+          checked={data.widgetAnniversaireActif}
+          onChange={v => updateWidgets({ widgetAnniversaireActif: v })}
+        />
       </div>
 
       {/* Changement de PIN */}

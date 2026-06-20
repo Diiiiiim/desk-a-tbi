@@ -66,10 +66,35 @@ export default function Home() {
   const { data } = useData();
   const [birthdays, setBirthdays] = useState<{ today: any[]; next: any | null }>({ today: [], next: null });
 
-  // Simuler la météo (en production, utiliser une API réelle)
+  // Météo réelle (Open-Meteo), basée sur les coordonnées configurées du foyer
   useEffect(() => {
-    setWeather({ temp: "18°C", condition: "Nuageux" });
-  }, []);
+    if (!data.widgetMeteoActif) return;
+    let cancelled = false;
+    async function fetchWeather() {
+      try {
+        const res = await fetch(
+          `https://api.open-meteo.com/v1/forecast?latitude=${data.meteoLat}&longitude=${data.meteoLon}&current=temperature_2m,weather_code&timezone=Europe/Brussels`
+        );
+        const json = await res.json();
+        if (cancelled) return;
+        const code = json.current?.weather_code ?? 0;
+        const condition =
+          code === 0 ? "Ciel dégagé" :
+          code <= 2 ? "Partiellement nuageux" :
+          code === 3 ? "Nuageux" :
+          code <= 48 ? "Brumeux" :
+          code <= 65 ? "Pluie" :
+          code <= 75 ? "Neige" :
+          code <= 82 ? "Averses" : "Orage";
+        setWeather({ temp: `${Math.round(json.current?.temperature_2m ?? 0)}°C`, condition });
+      } catch {
+        setWeather(null);
+      }
+    }
+    fetchWeather();
+    const interval = setInterval(fetchWeather, 30 * 60 * 1000);
+    return () => { cancelled = true; clearInterval(interval); };
+  }, [data.widgetMeteoActif, data.meteoLat, data.meteoLon]);
 
   // Calculer les anniversaires (résidents + éducateurs)
   useEffect(() => {
@@ -136,7 +161,7 @@ export default function Home() {
       />
 
       {/* Widget Météo en haut à droite */}
-      {weather && (
+      {data.widgetMeteoActif && weather && (
         <div
           onClick={() => navigate("/meteo")}
           style={{
@@ -173,6 +198,7 @@ export default function Home() {
       )}
 
       {/* Widget Anniversaires en haut à gauche */}
+      {data.widgetAnniversaireActif && (
       <div
         onClick={() => navigate("/anniversaires")}
         style={{
@@ -213,6 +239,7 @@ export default function Home() {
           <div style={{ fontSize: "0.7rem", marginTop: "0.3rem", textAlign: "center" }}>{birthdays.next.daysUntil}j</div>
         ) : null}
       </div>
+      )}
 
       {/* Contenu au-dessus de l'overlay */}
       <div

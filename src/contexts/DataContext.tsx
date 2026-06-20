@@ -74,6 +74,8 @@ export interface AppData {
   ville: string;
   meteoLat: number;
   meteoLon: number;
+  widgetMeteoActif: boolean;
+  widgetAnniversaireActif: boolean;
 }
 
 // ─── Convertisseurs DB → App (snake_case → camelCase) ─────────────────────────
@@ -134,6 +136,7 @@ interface DataContextType {
   updateNomFoyer: (nom: string) => Promise<void>;
   updateCodePin: (pin: string) => Promise<void>;
   updateVille: (ville: string, lat: number, lon: number) => Promise<void>;
+  updateWidgets: (updates: { widgetMeteoActif?: boolean; widgetAnniversaireActif?: boolean }) => Promise<void>;
   resetData: () => void;
 }
 
@@ -150,6 +153,8 @@ const DEFAULT_APP_DATA: AppData = {
   ville: 'Peruwelz',
   meteoLat: 50.51,
   meteoLon: 3.59,
+  widgetMeteoActif: true,
+  widgetAnniversaireActif: true,
 };
 
 // IDs menus du jour (pour upsert)
@@ -241,6 +246,8 @@ export function DataProvider({ foyerId, children }: { foyerId: string; children:
         ville: foyerData?.ville || 'Peruwelz',
         meteoLat: foyerData?.meteo_lat ?? 50.51,
         meteoLon: foyerData?.meteo_lon ?? 3.59,
+        widgetMeteoActif: foyerData?.widget_meteo_actif ?? true,
+        widgetAnniversaireActif: foyerData?.widget_anniversaire_actif ?? true,
       });
       setLoading(false);
       } catch (err) {
@@ -415,6 +422,14 @@ export function DataProvider({ foyerId, children }: { foyerId: string; children:
     setAppData(prev => ({ ...prev, ville, meteoLat: lat, meteoLon: lon }));
   }, [foyerId]);
 
+  const updateWidgets = useCallback(async (updates: { widgetMeteoActif?: boolean; widgetAnniversaireActif?: boolean }) => {
+    const dbUpdates: any = {};
+    if (updates.widgetMeteoActif !== undefined) dbUpdates.widget_meteo_actif = updates.widgetMeteoActif;
+    if (updates.widgetAnniversaireActif !== undefined) dbUpdates.widget_anniversaire_actif = updates.widgetAnniversaireActif;
+    await supabase.from('foyers').update(dbUpdates).eq('id', foyerId);
+    setAppData(prev => ({ ...prev, ...updates }));
+  }, [foyerId]);
+
   const updateNomFoyer = useCallback(async (nom: string) => {
     await supabase.from('foyers').update({ nom }).eq('id', foyerId);
     setAppData(prev => ({ ...prev, nomFoyer: nom }));
@@ -436,6 +451,7 @@ export function DataProvider({ foyerId, children }: { foyerId: string; children:
       updateNomFoyer,
       updateCodePin,
       updateVille,
+      updateWidgets,
       resetData,
     }}>
       {children}
