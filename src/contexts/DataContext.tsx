@@ -62,6 +62,14 @@ export interface ModeleActivite {
   actif: boolean;
 }
 
+export interface TimelineMoment {
+  id: string;
+  heure: string; // format "HH:MM"
+  label: string;
+  emoji: string;
+  ordre: number;
+}
+
 export interface AppData {
   residents: Resident[];
   educateurs: Educateur[];
@@ -69,6 +77,7 @@ export interface AppData {
   evenements: Evenement[];
   modeles: ModeleActivite[];
   menus: { midi: Menu; soir: Menu };
+  timeline: TimelineMoment[];
   nomFoyer: string;
   codePin: string;
   ville: string;
@@ -76,6 +85,7 @@ export interface AppData {
   meteoLon: number;
   widgetMeteoActif: boolean;
   widgetAnniversaireActif: boolean;
+  widgetTimelineActif: boolean;
 }
 
 // ─── Convertisseurs DB → App (snake_case → camelCase) ─────────────────────────
@@ -98,6 +108,10 @@ function dbToEvenement(e: any): Evenement {
 
 function dbToModele(m: any): ModeleActivite {
   return { id: m.id, nom: m.nom, jour: m.jour, horaire: m.horaire, pictogramme: m.pictogramme_url || '', residentIds: m.resident_ids || [], educateurIds: m.educateur_ids || [], actif: m.actif };
+}
+
+function dbToTimelineMoment(t: any): TimelineMoment {
+  return { id: t.id, heure: t.heure, label: t.label, emoji: t.emoji || '⏰', ordre: t.ordre ?? 0 };
 }
 
 function dbToMenu(m: any): Menu {
@@ -132,11 +146,14 @@ interface DataContextType {
   addModele: (modele: Omit<ModeleActivite, 'id'>) => Promise<void>;
   updateModele: (id: string, updates: Partial<ModeleActivite>) => Promise<void>;
   removeModele: (id: string) => Promise<void>;
+  addTimelineMoment: (moment: Omit<TimelineMoment, 'id'>) => Promise<void>;
+  updateTimelineMoment: (id: string, updates: Partial<TimelineMoment>) => Promise<void>;
+  removeTimelineMoment: (id: string) => Promise<void>;
   updateMenu: (type: 'midi' | 'soir', updates: Partial<Menu>) => Promise<void>;
   updateNomFoyer: (nom: string) => Promise<void>;
   updateCodePin: (pin: string) => Promise<void>;
   updateVille: (ville: string, lat: number, lon: number) => Promise<void>;
-  updateWidgets: (updates: { widgetMeteoActif?: boolean; widgetAnniversaireActif?: boolean }) => Promise<void>;
+  updateWidgets: (updates: { widgetMeteoActif?: boolean; widgetAnniversaireActif?: boolean; widgetTimelineActif?: boolean }) => Promise<void>;
   resetData: () => void;
 }
 
@@ -148,6 +165,7 @@ const DEFAULT_MENU: Menu = { imageRepas: '', imageFeculent: '', imageLegume: '',
 const DEFAULT_APP_DATA: AppData = {
   residents: [], educateurs: [], activites: [], evenements: [], modeles: [],
   menus: { midi: DEFAULT_MENU, soir: DEFAULT_MENU },
+  timeline: [],
   nomFoyer: 'Foyer — Borne Interactive',
   codePin: '1234',
   ville: 'Peruwelz',
@@ -155,6 +173,7 @@ const DEFAULT_APP_DATA: AppData = {
   meteoLon: 3.59,
   widgetMeteoActif: true,
   widgetAnniversaireActif: true,
+  widgetTimelineActif: true,
 };
 
 // IDs menus du jour (pour upsert)
@@ -186,6 +205,10 @@ export function DataProvider({ foyerId, children }: { foyerId: string; children:
     const { data } = await supabase.from('modeles_activites').select('*').eq('foyer_id', foyerId).order('nom');
     if (data) setAppData(prev => ({ ...prev, modeles: data.map(dbToModele) }));
   };
+  const reloadTimeline = async () => {
+    const { data } = await supabase.from('timeline_moments').select('*').eq('foyer_id', foyerId).order('ordre');
+    if (data) setAppData(prev => ({ ...prev, timeline: data.map(dbToTimelineMoment) }));
+  };
   const reloadMenus = async () => {
     const { data } = await supabase.from('menus').select('*').eq('foyer_id', foyerId).eq('date_menu', today);
     if (data) {
@@ -216,6 +239,7 @@ export function DataProvider({ foyerId, children }: { foyerId: string; children:
         { data: evenementsData },
         { data: modelesData },
         { data: menusData },
+        { data: timelineData },
       ] = await Promise.all([
         supabase.from('foyers').select('*').eq('id', foyerId).single(),
         supabase.from('residents').select('*').eq('foyer_id', foyerId).order('prenom'),
@@ -224,6 +248,7 @@ export function DataProvider({ foyerId, children }: { foyerId: string; children:
         supabase.from('evenements').select('*').eq('foyer_id', foyerId).order('date_evenement'),
         supabase.from('modeles_activites').select('*').eq('foyer_id', foyerId).order('nom'),
         supabase.from('menus').select('*').eq('foyer_id', foyerId).eq('date_menu', today),
+        supabase.from('timeline_moments').select('*').eq('foyer_id', foyerId).order('ordre'),
       ]);
 
       const midi = menusData?.find((m: any) => m.type === 'midi');
@@ -241,6 +266,7 @@ export function DataProvider({ foyerId, children }: { foyerId: string; children:
           midi: midi ? dbToMenu(midi) : DEFAULT_MENU,
           soir: soir ? dbToMenu(soir) : DEFAULT_MENU,
         },
+        timeline: (timelineData || []).map(dbToTimelineMoment),
         nomFoyer: foyerData?.nom || 'Foyer — Borne Interactive',
         codePin: foyerData?.code_pin || '1234',
         ville: foyerData?.ville || 'Peruwelz',
@@ -248,6 +274,7 @@ export function DataProvider({ foyerId, children }: { foyerId: string; children:
         meteoLon: foyerData?.meteo_lon ?? 3.59,
         widgetMeteoActif: foyerData?.widget_meteo_actif ?? true,
         widgetAnniversaireActif: foyerData?.widget_anniversaire_actif ?? true,
+        widgetTimelineActif: foyerData?.widget_timeline_actif ?? true,
       });
       setLoading(false);
       } catch (err) {
@@ -267,6 +294,7 @@ export function DataProvider({ foyerId, children }: { foyerId: string; children:
       .on('postgres_changes', { event: '*', schema: 'public', table: 'activites', filter: `foyer_id=eq.${foyerId}` }, reloadActivites)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'evenements', filter: `foyer_id=eq.${foyerId}` }, reloadEvenements)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'modeles_activites', filter: `foyer_id=eq.${foyerId}` }, reloadModeles)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'timeline_moments', filter: `foyer_id=eq.${foyerId}` }, reloadTimeline)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'menus', filter: `foyer_id=eq.${foyerId}` }, reloadMenus)
       .subscribe();
     return () => { supabase.removeChannel(channel); };
@@ -384,6 +412,26 @@ export function DataProvider({ foyerId, children }: { foyerId: string; children:
     await supabase.from('modeles_activites').delete().eq('id', id);
   }, [foyerId]);
 
+  // ── Timeline (ligne du temps) ────────────────────────────────────────────────
+  const addTimelineMoment = useCallback(async (moment: Omit<TimelineMoment, 'id'>) => {
+    await supabase.from('timeline_moments').insert({
+      foyer_id: foyerId, heure: moment.heure, label: moment.label, emoji: moment.emoji, ordre: moment.ordre,
+    });
+  }, [foyerId]);
+
+  const updateTimelineMoment = useCallback(async (id: string, updates: Partial<TimelineMoment>) => {
+    const dbUpdates: any = {};
+    if (updates.heure !== undefined) dbUpdates.heure = updates.heure;
+    if (updates.label !== undefined) dbUpdates.label = updates.label;
+    if (updates.emoji !== undefined) dbUpdates.emoji = updates.emoji;
+    if (updates.ordre !== undefined) dbUpdates.ordre = updates.ordre;
+    await supabase.from('timeline_moments').update(dbUpdates).eq('id', id);
+  }, [foyerId]);
+
+  const removeTimelineMoment = useCallback(async (id: string) => {
+    await supabase.from('timeline_moments').delete().eq('id', id);
+  }, [foyerId]);
+
   // ── Menus ─────────────────────────────────────────────────────────────────
   const updateMenu = useCallback(async (type: 'midi' | 'soir', updates: Partial<Menu>) => {
     const dbUpdates: any = {};
@@ -422,10 +470,11 @@ export function DataProvider({ foyerId, children }: { foyerId: string; children:
     setAppData(prev => ({ ...prev, ville, meteoLat: lat, meteoLon: lon }));
   }, [foyerId]);
 
-  const updateWidgets = useCallback(async (updates: { widgetMeteoActif?: boolean; widgetAnniversaireActif?: boolean }) => {
+  const updateWidgets = useCallback(async (updates: { widgetMeteoActif?: boolean; widgetAnniversaireActif?: boolean; widgetTimelineActif?: boolean }) => {
     const dbUpdates: any = {};
     if (updates.widgetMeteoActif !== undefined) dbUpdates.widget_meteo_actif = updates.widgetMeteoActif;
     if (updates.widgetAnniversaireActif !== undefined) dbUpdates.widget_anniversaire_actif = updates.widgetAnniversaireActif;
+    if (updates.widgetTimelineActif !== undefined) dbUpdates.widget_timeline_actif = updates.widgetTimelineActif;
     await supabase.from('foyers').update(dbUpdates).eq('id', foyerId);
     setAppData(prev => ({ ...prev, ...updates }));
   }, [foyerId]);
@@ -447,6 +496,7 @@ export function DataProvider({ foyerId, children }: { foyerId: string; children:
       addActivite, updateActivite, removeActivite,
       addEvenement, updateEvenement, removeEvenement,
       addModele, updateModele, removeModele,
+      addTimelineMoment, updateTimelineMoment, removeTimelineMoment,
       updateMenu,
       updateNomFoyer,
       updateCodePin,

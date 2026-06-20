@@ -8,7 +8,7 @@ import { useLocation } from "wouter";
 import PinDialog from "@/components/PinDialog";
 import PhotoCircle from "@/components/PhotoCircle";
 import { useData } from "@/contexts/DataContext";
-import type { Activite, Evenement, ModeleActivite } from "@/contexts/DataContext";
+import type { Activite, Evenement, ModeleActivite, TimelineMoment } from "@/contexts/DataContext";
 import { supabase } from "@/lib/supabase";
 
 type AdminTab = "residents" | "educateurs" | "activites" | "evenements" | "modeles" | "menus" | "parametres";
@@ -684,6 +684,17 @@ function EmptyState({ text }: { text: string }) {
 }
 
 // ─── Styles partagés ──────────────────────────────────────────────────────────
+const cardStyle: React.CSSProperties = {
+  background: "oklch(0.16 0.04 240)",
+  border: "2px solid oklch(0.30 0.04 240)",
+  borderRadius: "1rem",
+  padding: "1.5rem",
+  display: "flex",
+  flexDirection: "column",
+  gap: "1rem",
+  maxWidth: 500,
+};
+
 const styles = {
   formTitle: {
     fontFamily: "'Baloo 2', sans-serif",
@@ -796,6 +807,111 @@ const styles = {
     cursor: "pointer",
   } as React.CSSProperties,
 };
+
+// ─── Sous-composant : édition de la ligne du temps ────────────────────────────
+function TimelineEditor() {
+  const { data, addTimelineMoment, updateTimelineMoment, removeTimelineMoment } = useData();
+  const moments = [...data.timeline].sort((a, b) => a.heure.localeCompare(b.heure));
+
+  const [nouvelleHeure, setNouvelleHeure] = useState("12:00");
+  const [nouveauLabel, setNouveauLabel] = useState("");
+  const [nouvelEmoji, setNouvelEmoji] = useState("⏰");
+
+  function handleAdd() {
+    if (!nouveauLabel.trim()) return;
+    const maxOrdre = moments.reduce((max, m) => Math.max(max, m.ordre), 0);
+    addTimelineMoment({ heure: nouvelleHeure, label: nouveauLabel.trim(), emoji: nouvelEmoji || "⏰", ordre: maxOrdre + 1 });
+    setNouveauLabel("");
+    setNouvelEmoji("⏰");
+  }
+
+  return (
+    <div style={cardStyle}>
+      <h4 style={{ fontFamily: "'Baloo 2', sans-serif", fontWeight: 700, fontSize: "1.1rem", color: "#fff", margin: 0 }}>
+        🕐 Ligne du temps de la journée
+      </h4>
+      <p style={{ fontFamily: "'Baloo 2', sans-serif", fontWeight: 500, fontSize: "0.85rem", color: "oklch(0.60 0.02 240)", margin: 0 }}>
+        Définissez les moments clés de la journée (lever, repas, activités...). Affichés sur le widget "Ma journée".
+      </p>
+
+      {/* Liste des moments existants */}
+      <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+        {moments.map(m => (
+          <div
+            key={m.id}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "0.6rem",
+              background: "oklch(0.20 0.04 240)",
+              border: "1px solid oklch(0.32 0.04 240)",
+              borderRadius: "0.6rem",
+              padding: "0.5rem 0.7rem",
+            }}
+          >
+            <input
+              type="time"
+              value={m.heure}
+              onChange={e => updateTimelineMoment(m.id, { heure: e.target.value })}
+              style={{ ...styles.input, width: "auto", flex: "0 0 110px", padding: "0.5rem" }}
+            />
+            <input
+              type="text"
+              value={m.emoji}
+              onChange={e => updateTimelineMoment(m.id, { emoji: e.target.value })}
+              style={{ ...styles.input, width: "auto", flex: "0 0 56px", textAlign: "center", padding: "0.5rem" }}
+              maxLength={4}
+            />
+            <input
+              type="text"
+              value={m.label}
+              onChange={e => updateTimelineMoment(m.id, { label: e.target.value })}
+              style={{ ...styles.input, flex: 1, padding: "0.5rem" }}
+            />
+            <button onClick={() => removeTimelineMoment(m.id)} style={{ ...styles.btnDanger, flexShrink: 0 }}>
+              🗑️
+            </button>
+          </div>
+        ))}
+
+        {moments.length === 0 && (
+          <div style={{ fontFamily: "'Baloo 2', sans-serif", color: "oklch(0.55 0.02 240)", fontSize: "0.9rem" }}>
+            Aucun moment configuré pour le moment.
+          </div>
+        )}
+      </div>
+
+      {/* Ajout d'un nouveau moment */}
+      <div style={{ display: "flex", alignItems: "center", gap: "0.6rem" }}>
+        <input
+          type="time"
+          value={nouvelleHeure}
+          onChange={e => setNouvelleHeure(e.target.value)}
+          style={{ ...styles.input, width: "auto", flex: "0 0 110px", padding: "0.5rem" }}
+        />
+        <input
+          type="text"
+          value={nouvelEmoji}
+          onChange={e => setNouvelEmoji(e.target.value)}
+          placeholder="⏰"
+          style={{ ...styles.input, width: "auto", flex: "0 0 56px", textAlign: "center", padding: "0.5rem" }}
+          maxLength={4}
+        />
+        <input
+          type="text"
+          value={nouveauLabel}
+          onChange={e => setNouveauLabel(e.target.value)}
+          onKeyDown={e => e.key === "Enter" && handleAdd()}
+          placeholder="Ex : Goûter"
+          style={{ ...styles.input, flex: 1, padding: "0.5rem" }}
+        />
+        <button onClick={handleAdd} style={{ ...styles.btnPrimary, flexShrink: 0 }}>
+          ➕ Ajouter
+        </button>
+      </div>
+    </div>
+  );
+}
 
 // ─── Sous-composant : interrupteur on/off pour un widget de l'accueil ────────
 // Conçu pour être réutilisé facilement pour de futurs widgets.
@@ -942,17 +1058,6 @@ function TabParametres() {
     setTimeout(() => setMsgPin(null), 3000);
   }
 
-  const cardStyle: React.CSSProperties = {
-    background: "oklch(0.16 0.04 240)",
-    border: "2px solid oklch(0.30 0.04 240)",
-    borderRadius: "1rem",
-    padding: "1.5rem",
-    display: "flex",
-    flexDirection: "column",
-    gap: "1rem",
-    maxWidth: 500,
-  };
-
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "2rem", overflowY: "auto", paddingBottom: "2rem" }}>
       <h3 style={{ fontFamily: "'Baloo 2', sans-serif", fontWeight: 800, fontSize: "1.3rem", color: "#FFD600", margin: 0 }}>
@@ -1062,7 +1167,16 @@ function TabParametres() {
           checked={data.widgetAnniversaireActif}
           onChange={v => updateWidgets({ widgetAnniversaireActif: v })}
         />
+        <WidgetToggleRow
+          emoji="🕐"
+          label="Ma journée (ligne du temps)"
+          checked={data.widgetTimelineActif}
+          onChange={v => updateWidgets({ widgetTimelineActif: v })}
+        />
       </div>
+
+      {/* Ligne du temps — gestion des moments */}
+      <TimelineEditor />
 
       {/* Changement de PIN */}
       <div style={cardStyle}>

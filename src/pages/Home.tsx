@@ -60,11 +60,57 @@ const NAV_BUTTONS = [
   },
 ];
 
+// ─── Pastille de widget réutilisable, alignée en colonne verticale ────────────
+function WidgetPastille({
+  onClick, background, shadow, children,
+}: { onClick: () => void; background: string; shadow: string; children: React.ReactNode }) {
+  return (
+    <div
+      onClick={onClick}
+      style={{
+        width: "100px",
+        height: "100px",
+        borderRadius: "50%",
+        background,
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "center",
+        color: "#fff",
+        fontFamily: "'Baloo 2', sans-serif",
+        fontWeight: 800,
+        cursor: "pointer",
+        boxShadow: `0 4px 14px ${shadow}`,
+        transition: "transform 120ms ease-out",
+      }}
+      onPointerDown={e => {
+        (e.currentTarget as HTMLDivElement).style.transform = "scale(0.93)";
+      }}
+      onPointerUp={e => {
+        (e.currentTarget as HTMLDivElement).style.transform = "scale(1)";
+      }}
+    >
+      {children}
+    </div>
+  );
+}
+
 export default function Home() {
   const [, navigate] = useLocation();
   const [weather, setWeather] = useState<{ temp: string; condition: string } | null>(null);
   const { data } = useData();
   const [birthdays, setBirthdays] = useState<{ today: any[]; next: any | null }>({ today: [], next: null });
+  const [heureActuelle, setHeureActuelle] = useState(() =>
+    new Date().toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })
+  );
+
+  // Horloge — rafraîchie chaque minute
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setHeureActuelle(new Date().toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" }));
+    }, 30 * 1000);
+    return () => clearInterval(interval);
+  }, []);
 
   // Météo réelle (Open-Meteo), basée sur les coordonnées configurées du foyer
   useEffect(() => {
@@ -160,86 +206,61 @@ export default function Home() {
         }}
       />
 
-      {/* Widget Météo en haut à droite */}
-      {data.widgetMeteoActif && weather && (
-        <div
-          onClick={() => navigate("/meteo")}
-          style={{
-            position: "absolute",
-            top: "25%",
-            right: "1rem",
-            zIndex: 10,
-            width: "160px",
-            height: "160px",
-            borderRadius: "50%",
-            background: "linear-gradient(135deg, #0277BD 0%, #01579B 100%)",
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            justifyContent: "center",
-            color: "#fff",
-            fontFamily: "'Baloo 2', sans-serif",
-            fontWeight: 800,
-            cursor: "pointer",
-            boxShadow: "0 6px 20px rgba(2, 119, 189, 0.5)",
-            transition: "transform 120ms ease-out",
-          }}
-          onPointerDown={e => {
-            (e.currentTarget as HTMLDivElement).style.transform = "scale(0.95)";
-          }}
-          onPointerUp={e => {
-            (e.currentTarget as HTMLDivElement).style.transform = "scale(1)";
-          }}
-        >
-          <div style={{ fontSize: "2rem" }}>🌤️</div>
-          <div style={{ fontSize: "1rem", marginTop: "0.5rem" }}>{weather.temp}</div>
-          <div style={{ fontSize: "0.7rem", marginTop: "0.2rem", textAlign: "center", lineHeight: 1.1 }}>{weather.condition}</div>
-        </div>
-      )}
-
-      {/* Widget Anniversaires en haut à gauche */}
-      {data.widgetAnniversaireActif && (
+      {/* Colonne de widgets — alignés verticalement à droite */}
       <div
-        onClick={() => navigate("/anniversaires")}
         style={{
           position: "absolute",
-          top: "25%",
-          left: "1rem",
+          top: "5.5rem",
+          right: "1.2rem",
           zIndex: 10,
-          width: "160px",
-          height: "160px",
-          borderRadius: "50%",
-          background: birthdays.today.length > 0
-            ? "linear-gradient(135deg, #FF6B9D 0%, #FF1493 100%)"
-            : "linear-gradient(135deg, #FFB347 0%, #FF8C00 100%)",
           display: "flex",
           flexDirection: "column",
+          gap: "1rem",
           alignItems: "center",
-          justifyContent: "center",
-          color: "#fff",
-          fontFamily: "'Baloo 2', sans-serif",
-          fontWeight: 800,
-          cursor: "pointer",
-          boxShadow: birthdays.today.length > 0
-            ? "0 6px 20px rgba(255, 107, 157, 0.5)"
-            : "0 6px 20px rgba(255, 140, 0, 0.5)",
-          transition: "transform 120ms ease-out",
-        }}
-        onPointerDown={e => {
-          (e.currentTarget as HTMLDivElement).style.transform = "scale(0.95)";
-        }}
-        onPointerUp={e => {
-          (e.currentTarget as HTMLDivElement).style.transform = "scale(1)";
         }}
       >
-        <div style={{ fontSize: "2rem" }}>🎂</div>
-        {birthdays.today.length > 0 ? (
-          <div style={{ fontSize: "0.9rem", marginTop: "0.3rem", fontWeight: 900 }}>{birthdays.today.length}</div>
-        ) : birthdays.next ? (
-          <div style={{ fontSize: "0.7rem", marginTop: "0.3rem", textAlign: "center" }}>{birthdays.next.daysUntil}j</div>
-        ) : null}
+        {data.widgetTimelineActif && (
+          <WidgetPastille
+            onClick={() => navigate("/timeline")}
+            background="linear-gradient(135deg, #FFB300 0%, #FF8F00 100%)"
+            shadow="rgba(255, 143, 0, 0.5)"
+          >
+            <div style={{ fontSize: "1.7rem" }}>🕐</div>
+            <div style={{ fontSize: "0.95rem", marginTop: "0.25rem" }}>{heureActuelle}</div>
+          </WidgetPastille>
+        )}
+
+        {data.widgetMeteoActif && weather && (
+          <WidgetPastille
+            onClick={() => navigate("/meteo")}
+            background="linear-gradient(135deg, #0277BD 0%, #01579B 100%)"
+            shadow="rgba(2, 119, 189, 0.5)"
+          >
+            <div style={{ fontSize: "1.7rem" }}>🌤️</div>
+            <div style={{ fontSize: "0.85rem", marginTop: "0.25rem" }}>{weather.temp}</div>
+            <div style={{ fontSize: "0.6rem", marginTop: "0.1rem", textAlign: "center", lineHeight: 1.1 }}>{weather.condition}</div>
+          </WidgetPastille>
+        )}
+
+        {data.widgetAnniversaireActif && (
+          <WidgetPastille
+            onClick={() => navigate("/anniversaires")}
+            background={
+              birthdays.today.length > 0
+                ? "linear-gradient(135deg, #FF6B9D 0%, #FF1493 100%)"
+                : "linear-gradient(135deg, #FFB347 0%, #FF8C00 100%)"
+            }
+            shadow={birthdays.today.length > 0 ? "rgba(255, 107, 157, 0.5)" : "rgba(255, 140, 0, 0.5)"}
+          >
+            <div style={{ fontSize: "1.7rem" }}>🎂</div>
+            {birthdays.today.length > 0 ? (
+              <div style={{ fontSize: "0.85rem", marginTop: "0.2rem", fontWeight: 900 }}>{birthdays.today.length}</div>
+            ) : birthdays.next ? (
+              <div style={{ fontSize: "0.65rem", marginTop: "0.2rem", textAlign: "center" }}>{birthdays.next.daysUntil}j</div>
+            ) : null}
+          </WidgetPastille>
+        )}
       </div>
-      )}
 
       {/* Contenu au-dessus de l'overlay */}
       <div
