@@ -4,7 +4,7 @@
  * pour les pages existantes (même API que l'ancienne version localStorage).
  */
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { supabase, FOYER_ID } from '../lib/supabase';
+import { supabase } from '../lib/supabase';
 
 // ─── Types compatibles avec les pages existantes ──────────────────────────────
 
@@ -156,33 +156,33 @@ const DEFAULT_APP_DATA: AppData = {
 let menuMidiId: string | null = null;
 let menuSoirId: string | null = null;
 
-export function DataProvider({ children }: { children: React.ReactNode }) {
+export function DataProvider({ foyerId, children }: { foyerId: string; children: React.ReactNode }) {
   const [appData, setAppData] = useState<AppData>(DEFAULT_APP_DATA);
   const [loading, setLoading] = useState(true);
 
   // ── Helpers de rechargement ────────────────────────────────────────────────
   const reloadResidents = async () => {
-    const { data } = await supabase.from('residents').select('*').eq('foyer_id', FOYER_ID).order('prenom');
+    const { data } = await supabase.from('residents').select('*').eq('foyer_id', foyerId).order('prenom');
     if (data) setAppData(prev => ({ ...prev, residents: data.map(dbToResident) }));
   };
   const reloadEducateurs = async () => {
-    const { data } = await supabase.from('educateurs').select('*').eq('foyer_id', FOYER_ID).order('prenom');
+    const { data } = await supabase.from('educateurs').select('*').eq('foyer_id', foyerId).order('prenom');
     if (data) setAppData(prev => ({ ...prev, educateurs: data.map(dbToEducateur) }));
   };
   const reloadActivites = async () => {
-    const { data } = await supabase.from('activites').select('*').eq('foyer_id', FOYER_ID).eq('date_activite', today);
+    const { data } = await supabase.from('activites').select('*').eq('foyer_id', foyerId).eq('date_activite', today);
     if (data) setAppData(prev => ({ ...prev, activites: data.map(dbToActivite) }));
   };
   const reloadEvenements = async () => {
-    const { data } = await supabase.from('evenements').select('*').eq('foyer_id', FOYER_ID).order('date_evenement');
+    const { data } = await supabase.from('evenements').select('*').eq('foyer_id', foyerId).order('date_evenement');
     if (data) setAppData(prev => ({ ...prev, evenements: data.map(dbToEvenement) }));
   };
   const reloadModeles = async () => {
-    const { data } = await supabase.from('modeles_activites').select('*').eq('foyer_id', FOYER_ID).order('nom');
+    const { data } = await supabase.from('modeles_activites').select('*').eq('foyer_id', foyerId).order('nom');
     if (data) setAppData(prev => ({ ...prev, modeles: data.map(dbToModele) }));
   };
   const reloadMenus = async () => {
-    const { data } = await supabase.from('menus').select('*').eq('foyer_id', FOYER_ID).eq('date_menu', today);
+    const { data } = await supabase.from('menus').select('*').eq('foyer_id', foyerId).eq('date_menu', today);
     if (data) {
       const midi = data.find((m: any) => m.type === 'midi');
       const soir = data.find((m: any) => m.type === 'soir');
@@ -212,13 +212,13 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         { data: modelesData },
         { data: menusData },
       ] = await Promise.all([
-        supabase.from('foyers').select('*').eq('id', FOYER_ID).single(),
-        supabase.from('residents').select('*').eq('foyer_id', FOYER_ID).order('prenom'),
-        supabase.from('educateurs').select('*').eq('foyer_id', FOYER_ID).order('prenom'),
-        supabase.from('activites').select('*').eq('foyer_id', FOYER_ID).eq('date_activite', today),
-        supabase.from('evenements').select('*').eq('foyer_id', FOYER_ID).order('date_evenement'),
-        supabase.from('modeles_activites').select('*').eq('foyer_id', FOYER_ID).order('nom'),
-        supabase.from('menus').select('*').eq('foyer_id', FOYER_ID).eq('date_menu', today),
+        supabase.from('foyers').select('*').eq('id', foyerId).single(),
+        supabase.from('residents').select('*').eq('foyer_id', foyerId).order('prenom'),
+        supabase.from('educateurs').select('*').eq('foyer_id', foyerId).order('prenom'),
+        supabase.from('activites').select('*').eq('foyer_id', foyerId).eq('date_activite', today),
+        supabase.from('evenements').select('*').eq('foyer_id', foyerId).order('date_evenement'),
+        supabase.from('modeles_activites').select('*').eq('foyer_id', foyerId).order('nom'),
+        supabase.from('menus').select('*').eq('foyer_id', foyerId).eq('date_menu', today),
       ]);
 
       const midi = menusData?.find((m: any) => m.type === 'midi');
@@ -249,26 +249,26 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       }
     }
     loadAll();
-  }, []);
+  }, [foyerId]);
 
   // ── Realtime ───────────────────────────────────────────────────────────────
   useEffect(() => {
     const channel = supabase
-      .channel(`foyer-${FOYER_ID}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'residents', filter: `foyer_id=eq.${FOYER_ID}` }, reloadResidents)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'educateurs', filter: `foyer_id=eq.${FOYER_ID}` }, reloadEducateurs)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'activites', filter: `foyer_id=eq.${FOYER_ID}` }, reloadActivites)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'evenements', filter: `foyer_id=eq.${FOYER_ID}` }, reloadEvenements)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'modeles_activites', filter: `foyer_id=eq.${FOYER_ID}` }, reloadModeles)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'menus', filter: `foyer_id=eq.${FOYER_ID}` }, reloadMenus)
+      .channel(`foyer-${foyerId}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'residents', filter: `foyer_id=eq.${foyerId}` }, reloadResidents)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'educateurs', filter: `foyer_id=eq.${foyerId}` }, reloadEducateurs)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'activites', filter: `foyer_id=eq.${foyerId}` }, reloadActivites)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'evenements', filter: `foyer_id=eq.${foyerId}` }, reloadEvenements)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'modeles_activites', filter: `foyer_id=eq.${foyerId}` }, reloadModeles)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'menus', filter: `foyer_id=eq.${foyerId}` }, reloadMenus)
       .subscribe();
     return () => { supabase.removeChannel(channel); };
-  }, []);
+  }, [foyerId]);
 
   // ── Résidents ──────────────────────────────────────────────────────────────
   const addResident = useCallback(async (prenom: string, photo: string, dateNaissance?: string) => {
-    await supabase.from('residents').insert({ foyer_id: FOYER_ID, prenom, photo_url: photo, date_naissance: dateNaissance || null });
-  }, []);
+    await supabase.from('residents').insert({ foyer_id: foyerId, prenom, photo_url: photo, date_naissance: dateNaissance || null });
+  }, [foyerId]);
 
   const updateResident = useCallback(async (id: string, updates: Partial<Resident>) => {
     const dbUpdates: any = {};
@@ -276,16 +276,16 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     if (updates.photo !== undefined) dbUpdates.photo_url = updates.photo;
     if (updates.dateNaissance !== undefined) dbUpdates.date_naissance = updates.dateNaissance;
     await supabase.from('residents').update(dbUpdates).eq('id', id);
-  }, []);
+  }, [foyerId]);
 
   const removeResident = useCallback(async (id: string) => {
     await supabase.from('residents').delete().eq('id', id);
-  }, []);
+  }, [foyerId]);
 
   // ── Éducateurs ─────────────────────────────────────────────────────────────
   const addEducateur = useCallback(async (prenom: string, photo: string, dateNaissance?: string) => {
-    await supabase.from('educateurs').insert({ foyer_id: FOYER_ID, prenom, photo_url: photo, date_naissance: dateNaissance || null, present_aujourd_hui: true });
-  }, []);
+    await supabase.from('educateurs').insert({ foyer_id: foyerId, prenom, photo_url: photo, date_naissance: dateNaissance || null, present_aujourd_hui: true });
+  }, [foyerId]);
 
   const updateEducateur = useCallback(async (id: string, updates: Partial<Educateur>) => {
     const dbUpdates: any = {};
@@ -294,25 +294,25 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     if (updates.dateNaissance !== undefined) dbUpdates.date_naissance = updates.dateNaissance;
     if (updates.presentAujourdhui !== undefined) dbUpdates.present_aujourd_hui = updates.presentAujourdhui;
     await supabase.from('educateurs').update(dbUpdates).eq('id', id);
-  }, []);
+  }, [foyerId]);
 
   const removeEducateur = useCallback(async (id: string) => {
     await supabase.from('educateurs').delete().eq('id', id);
-  }, []);
+  }, [foyerId]);
 
   const toggleEducateurPresence = useCallback(async (id: string) => {
     const educ = appData.educateurs.find(e => e.id === id);
     if (educ) await supabase.from('educateurs').update({ present_aujourd_hui: !educ.presentAujourdhui }).eq('id', id);
-  }, [appData.educateurs]);
+  }, [appData.educateurs, foyerId]);
 
   // ── Activités ──────────────────────────────────────────────────────────────
   const addActivite = useCallback(async (activite: Omit<Activite, 'id'>) => {
     await supabase.from('activites').insert({
-      foyer_id: FOYER_ID, nom: activite.nom, horaire: activite.horaire,
+      foyer_id: foyerId, nom: activite.nom, horaire: activite.horaire,
       pictogramme_url: activite.pictogramme, resident_ids: activite.residentIds,
       educateur_ids: activite.educateurIds, date_activite: today,
     });
-  }, []);
+  }, [foyerId]);
 
   const updateActivite = useCallback(async (id: string, updates: Partial<Activite>) => {
     const dbUpdates: any = {};
@@ -322,20 +322,20 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     if (updates.residentIds !== undefined) dbUpdates.resident_ids = updates.residentIds;
     if (updates.educateurIds !== undefined) dbUpdates.educateur_ids = updates.educateurIds;
     await supabase.from('activites').update(dbUpdates).eq('id', id);
-  }, []);
+  }, [foyerId]);
 
   const removeActivite = useCallback(async (id: string) => {
     await supabase.from('activites').delete().eq('id', id);
-  }, []);
+  }, [foyerId]);
 
   // ── Événements ────────────────────────────────────────────────────────────
   const addEvenement = useCallback(async (evenement: Omit<Evenement, 'id'>) => {
     await supabase.from('evenements').insert({
-      foyer_id: FOYER_ID, titre: evenement.titre, date_evenement: evenement.date,
+      foyer_id: foyerId, titre: evenement.titre, date_evenement: evenement.date,
       description: evenement.description, photo_url: evenement.photo,
       resident_ids: evenement.residentIds, educateur_ids: evenement.educateurIds,
     });
-  }, []);
+  }, [foyerId]);
 
   const updateEvenement = useCallback(async (id: string, updates: Partial<Evenement>) => {
     const dbUpdates: any = {};
@@ -346,20 +346,20 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     if (updates.residentIds !== undefined) dbUpdates.resident_ids = updates.residentIds;
     if (updates.educateurIds !== undefined) dbUpdates.educateur_ids = updates.educateurIds;
     await supabase.from('evenements').update(dbUpdates).eq('id', id);
-  }, []);
+  }, [foyerId]);
 
   const removeEvenement = useCallback(async (id: string) => {
     await supabase.from('evenements').delete().eq('id', id);
-  }, []);
+  }, [foyerId]);
 
   // ── Modèles ───────────────────────────────────────────────────────────────
   const addModele = useCallback(async (modele: Omit<ModeleActivite, 'id'>) => {
     await supabase.from('modeles_activites').insert({
-      foyer_id: FOYER_ID, nom: modele.nom, jour: modele.jour, horaire: modele.horaire,
+      foyer_id: foyerId, nom: modele.nom, jour: modele.jour, horaire: modele.horaire,
       pictogramme_url: modele.pictogramme, resident_ids: modele.residentIds,
       educateur_ids: modele.educateurIds, actif: modele.actif,
     });
-  }, []);
+  }, [foyerId]);
 
   const updateModele = useCallback(async (id: string, updates: Partial<ModeleActivite>) => {
     const dbUpdates: any = {};
@@ -371,11 +371,11 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     if (updates.educateurIds !== undefined) dbUpdates.educateur_ids = updates.educateurIds;
     if (updates.actif !== undefined) dbUpdates.actif = updates.actif;
     await supabase.from('modeles_activites').update(dbUpdates).eq('id', id);
-  }, []);
+  }, [foyerId]);
 
   const removeModele = useCallback(async (id: string) => {
     await supabase.from('modeles_activites').delete().eq('id', id);
-  }, []);
+  }, [foyerId]);
 
   // ── Menus ─────────────────────────────────────────────────────────────────
   const updateMenu = useCallback(async (type: 'midi' | 'soir', updates: Partial<Menu>) => {
@@ -392,7 +392,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       await supabase.from('menus').update(dbUpdates).eq('id', existingId);
     } else {
       const { data } = await supabase.from('menus').upsert({
-        foyer_id: FOYER_ID, type, date_menu: today,
+        foyer_id: foyerId, type, date_menu: today,
         image_repas_url: '', image_feculent_url: '', image_legume_url: '',
         image_accompagnement_url: '', image_dessert_url: '', description: '',
         ...dbUpdates,
@@ -402,27 +402,27 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         else menuSoirId = data.id;
       }
     }
-  }, []);
+  }, [foyerId]);
 
   // ── Foyer ─────────────────────────────────────────────────────────────────
   const updateCodePin = useCallback(async (pin: string) => {
-    await supabase.from('foyers').update({ code_pin: pin }).eq('id', FOYER_ID);
+    await supabase.from('foyers').update({ code_pin: pin }).eq('id', foyerId);
     setAppData(prev => ({ ...prev, codePin: pin }));
-  }, []);
+  }, [foyerId]);
 
   const updateVille = useCallback(async (ville: string, lat: number, lon: number) => {
-    await supabase.from('foyers').update({ ville, meteo_lat: lat, meteo_lon: lon }).eq('id', FOYER_ID);
+    await supabase.from('foyers').update({ ville, meteo_lat: lat, meteo_lon: lon }).eq('id', foyerId);
     setAppData(prev => ({ ...prev, ville, meteoLat: lat, meteoLon: lon }));
-  }, []);
+  }, [foyerId]);
 
   const updateNomFoyer = useCallback(async (nom: string) => {
-    await supabase.from('foyers').update({ nom }).eq('id', FOYER_ID);
+    await supabase.from('foyers').update({ nom }).eq('id', foyerId);
     setAppData(prev => ({ ...prev, nomFoyer: nom }));
-  }, []);
+  }, [foyerId]);
 
   const resetData = useCallback(() => {
     console.warn('resetData non implémenté en mode Supabase');
-  }, []);
+  }, [foyerId]);
 
   return (
     <DataContext.Provider value={{

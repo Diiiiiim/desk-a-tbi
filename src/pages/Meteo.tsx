@@ -7,7 +7,8 @@
 import { useEffect, useState } from "react";
 import CommunicationBar from "@/components/CommunicationBar";
 import KiosqueHeader from "@/components/KiosqueHeader";
-import { supabase, FOYER_ID } from "@/lib/supabase";
+import { supabase } from "@/lib/supabase";
+import { useFoyer } from "@/contexts/FoyerContext";
 
 interface HourlyForecast {
   time: string;
@@ -42,12 +43,14 @@ function getWeatherDescription(code: number): { description: string; icon: strin
 }
 
 export default function Meteo() {
+  const { foyerId } = useFoyer();
   const [meteo, setMeteo] = useState<MeteoData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [ville, setVille] = useState("Peruwelz");
 
   useEffect(() => {
+    if (!foyerId) return;
     async function fetchMeteo() {
       try {
         setLoading(true);
@@ -56,7 +59,7 @@ export default function Meteo() {
         const { data: foyerData } = await supabase
           .from("foyers")
           .select("ville, meteo_lat, meteo_lon")
-          .eq("id", FOYER_ID)
+          .eq("id", foyerId as string)
           .single();
 
         const lat = foyerData?.meteo_lat ?? 50.51;
@@ -118,7 +121,7 @@ export default function Meteo() {
     fetchMeteo();
     const interval = setInterval(fetchMeteo, 30 * 60 * 1000);
     return () => clearInterval(interval);
-  }, []);
+  }, [foyerId]);
 
   return (
     <div

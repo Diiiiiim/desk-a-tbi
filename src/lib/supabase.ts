@@ -9,5 +9,3 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
     params: { eventsPerSecond: 10 },
   },
 });
-
-export const FOYER_ID = '00000000-0000-0000-0000-000000000001';

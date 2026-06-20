@@ -3,7 +3,8 @@
  * Vérifie le PIN contre Supabase (table foyers)
  */
 import { useState } from "react";
-import { supabase, FOYER_ID } from "@/lib/supabase";
+import { supabase } from "@/lib/supabase";
+import { useFoyer } from "@/contexts/FoyerContext";
 
 interface PinDialogProps {
   onSuccess: () => void;
@@ -11,6 +12,7 @@ interface PinDialogProps {
 }
 
 export default function PinDialog({ onSuccess, onCancel }: PinDialogProps) {
+  const { foyerId } = useFoyer();
   const [input, setInput] = useState("");
   const [error, setError] = useState(false);
   const [shake, setShake] = useState(false);
@@ -22,7 +24,7 @@ export default function PinDialog({ onSuccess, onCancel }: PinDialogProps) {
       const { data } = await supabase
         .from("foyers")
         .select("code_pin")
-        .eq("id", FOYER_ID)
+        .eq("id", foyerId as string)
         .single();
 
       const correct = data?.code_pin || "1234";
