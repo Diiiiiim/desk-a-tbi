@@ -119,6 +119,19 @@ export default function FoyerSelector() {
           </div>
         )}
       </div>
+
+      <a
+        href="/super-admin"
+        style={{
+          fontFamily: "'Baloo 2', sans-serif",
+          fontWeight: 600,
+          fontSize: "0.85rem",
+          color: "oklch(0.40 0.02 240)",
+          textDecoration: "none",
+        }}
+      >
+        Administration
+      </a>
     </div>
   );
 }

@@ -21,6 +21,7 @@ import { DataProvider } from "./contexts/DataContext";
 import { FoyerProvider, useFoyer } from "./contexts/FoyerContext";
 import FoyerSelector from "./pages/FoyerSelector";
 import FoyerNotFound from "./pages/FoyerNotFound";
+import SuperAdmin from "./pages/SuperAdmin";
 import Home from "./pages/Home";
 import Activites from "./pages/Activites";
 import MenuPage from "./pages/MenuPage";
@@ -103,6 +104,11 @@ function FoyerGate({ slug }: { slug: string }) {
 /** Détermine quoi afficher selon l'URL réelle du navigateur */
 function RootRouter() {
   const path = window.location.pathname;
+
+  if (path === "/super-admin" || path.startsWith("/super-admin/")) {
+    return <SuperAdmin />;
+  }
+
   const match = path.match(/^\/f\/([^/]+)/);
 
   if (match) {
