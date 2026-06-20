@@ -19,6 +19,7 @@ interface FoyerRow {
   slug: string;
   created_at: string;
   actif: boolean;
+  code_pin: string;
   nbResidents?: number;
   nbEducateurs?: number;
 }
@@ -39,6 +40,16 @@ export default function SuperAdmin() {
 
   const [foyers, setFoyers] = useState<FoyerRow[]>([]);
   const [loading, setLoading] = useState(false);
+  const [visiblePins, setVisiblePins] = useState<Set<string>>(new Set());
+
+  function togglePinVisibility(id: string) {
+    setVisiblePins(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
 
   // Formulaire création
   const [nouveauNom, setNouveauNom] = useState("");
@@ -69,7 +80,7 @@ export default function SuperAdmin() {
     setLoading(true);
     const { data: foyersData } = await supabase
       .from("foyers")
-      .select("id, nom, slug, created_at, actif")
+      .select("id, nom, slug, created_at, actif, code_pin")
       .order("created_at", { ascending: false });
 
     if (!foyersData) {
@@ -286,6 +297,37 @@ export default function SuperAdmin() {
                   </div>
                   <div style={{ fontFamily: "'Baloo 2', sans-serif", fontWeight: 600, fontSize: "0.85rem", color: "oklch(0.60 0.02 240)" }}>
                     /f/{f.slug} • {f.nbResidents} résident{f.nbResidents !== 1 ? "s" : ""} • {f.nbEducateurs} éducateur{f.nbEducateurs !== 1 ? "s" : ""}
+                  </div>
+                  <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginTop: "0.3rem" }}>
+                    <span style={{ fontFamily: "'Baloo 2', sans-serif", fontWeight: 700, fontSize: "0.85rem", color: "oklch(0.60 0.02 240)" }}>
+                      🔐 PIN :
+                    </span>
+                    <span
+                      style={{
+                        fontFamily: "monospace",
+                        fontWeight: 700,
+                        fontSize: "0.95rem",
+                        color: "#FFD600",
+                        letterSpacing: "0.15em",
+                        minWidth: "4ch",
+                      }}
+                    >
+                      {visiblePins.has(f.id) ? f.code_pin : "•".repeat(f.code_pin?.length || 4)}
+                    </span>
+                    <button
+                      onClick={() => togglePinVisibility(f.id)}
+                      style={{
+                        background: "none",
+                        border: "none",
+                        cursor: "pointer",
+                        fontSize: "0.9rem",
+                        padding: "0.1rem 0.3rem",
+                        opacity: 0.7,
+                      }}
+                      title={visiblePins.has(f.id) ? "Cacher le PIN" : "Afficher le PIN"}
+                    >
+                      {visiblePins.has(f.id) ? "🙈" : "👁️"}
+                    </button>
                   </div>
                 </div>
                 <a
