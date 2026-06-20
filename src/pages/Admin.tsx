@@ -809,6 +809,81 @@ const styles = {
 };
 
 // ─── Sous-composant : édition de la ligne du temps ────────────────────────────
+// Emojis prédéfinis pour les moments de la journée — couvre les cas usuels
+const TIMELINE_EMOJIS = [
+  "🌅", "🚿", "🥐", "🎨", "🍽️", "😴", "🍪", "🧸", "🛋️", "🛏️",
+  "🚶", "🎲", "📺", "🛁", "🥤", "🦷", "👕", "🚌", "🏫", "💊",
+  "🎵", "📚", "⚽", "🧘", "☀️", "🌙", "⏰",
+];
+
+function EmojiPicker({ value, onChange }: { value: string; onChange: (emoji: string) => void }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div style={{ position: "relative", flexShrink: 0 }}>
+      <button
+        onClick={() => setOpen(o => !o)}
+        style={{
+          width: 52,
+          height: 52,
+          fontSize: "1.6rem",
+          background: "oklch(0.22 0.04 240)",
+          border: "2px solid oklch(0.35 0.04 240)",
+          borderRadius: "0.6rem",
+          cursor: "pointer",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        {value || "⏰"}
+      </button>
+      {open && (
+        <>
+          <div
+            onClick={() => setOpen(false)}
+            style={{ position: "fixed", inset: 0, zIndex: 99 }}
+          />
+          <div
+            style={{
+              position: "absolute",
+              top: "100%",
+              left: 0,
+              marginTop: "0.4rem",
+              zIndex: 100,
+              background: "oklch(0.18 0.04 240)",
+              border: "2px solid oklch(0.35 0.04 240)",
+              borderRadius: "0.7rem",
+              padding: "0.6rem",
+              display: "grid",
+              gridTemplateColumns: "repeat(6, 1fr)",
+              gap: "0.3rem",
+              width: 280,
+              boxShadow: "0 8px 24px rgba(0,0,0,0.5)",
+            }}
+          >
+            {TIMELINE_EMOJIS.map(e => (
+              <button
+                key={e}
+                onClick={() => { onChange(e); setOpen(false); }}
+                style={{
+                  fontSize: "1.4rem",
+                  background: e === value ? "oklch(0.32 0.06 95)" : "transparent",
+                  border: "none",
+                  borderRadius: "0.4rem",
+                  padding: "0.4rem",
+                  cursor: "pointer",
+                }}
+              >
+                {e}
+              </button>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 function TimelineEditor() {
   const { data, addTimelineMoment, updateTimelineMoment, removeTimelineMoment } = useData();
   const moments = [...data.timeline].sort((a, b) => a.heure.localeCompare(b.heure));
@@ -826,7 +901,7 @@ function TimelineEditor() {
   }
 
   return (
-    <div style={cardStyle}>
+    <div style={{ ...cardStyle, maxWidth: 640 }}>
       <h4 style={{ fontFamily: "'Baloo 2', sans-serif", fontWeight: 700, fontSize: "1.1rem", color: "#fff", margin: 0 }}>
         🕐 Ligne du temps de la journée
       </h4>
@@ -835,42 +910,42 @@ function TimelineEditor() {
       </p>
 
       {/* Liste des moments existants */}
-      <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+      <div style={{ display: "flex", flexDirection: "column", gap: "0.6rem" }}>
         {moments.map(m => (
           <div
             key={m.id}
             style={{
               display: "flex",
-              alignItems: "center",
-              gap: "0.6rem",
+              flexDirection: "column",
+              gap: "0.5rem",
               background: "oklch(0.20 0.04 240)",
               border: "1px solid oklch(0.32 0.04 240)",
               borderRadius: "0.6rem",
-              padding: "0.5rem 0.7rem",
+              padding: "0.6rem 0.7rem",
             }}
           >
-            <input
-              type="time"
-              value={m.heure}
-              onChange={e => updateTimelineMoment(m.id, { heure: e.target.value })}
-              style={{ ...styles.input, width: "auto", flex: "0 0 110px", padding: "0.5rem" }}
-            />
-            <input
-              type="text"
-              value={m.emoji}
-              onChange={e => updateTimelineMoment(m.id, { emoji: e.target.value })}
-              style={{ ...styles.input, width: "auto", flex: "0 0 56px", textAlign: "center", padding: "0.5rem" }}
-              maxLength={4}
-            />
+            <div style={{ display: "flex", alignItems: "center", gap: "0.6rem" }}>
+              <input
+                type="time"
+                value={m.heure}
+                onChange={e => updateTimelineMoment(m.id, { heure: e.target.value })}
+                style={{ ...styles.input, width: "auto", flex: "0 0 110px", padding: "0.5rem" }}
+              />
+              <EmojiPicker value={m.emoji} onChange={emoji => updateTimelineMoment(m.id, { emoji })} />
+              <button
+                onClick={() => removeTimelineMoment(m.id)}
+                style={{ ...styles.btnDanger, flexShrink: 0, marginLeft: "auto" }}
+              >
+                🗑️
+              </button>
+            </div>
             <input
               type="text"
               value={m.label}
               onChange={e => updateTimelineMoment(m.id, { label: e.target.value })}
-              style={{ ...styles.input, flex: 1, padding: "0.5rem" }}
+              style={{ ...styles.input, width: "100%", padding: "0.6rem" }}
+              placeholder="Nom du moment"
             />
-            <button onClick={() => removeTimelineMoment(m.id)} style={{ ...styles.btnDanger, flexShrink: 0 }}>
-              🗑️
-            </button>
           </div>
         ))}
 
@@ -882,32 +957,42 @@ function TimelineEditor() {
       </div>
 
       {/* Ajout d'un nouveau moment */}
-      <div style={{ display: "flex", alignItems: "center", gap: "0.6rem" }}>
-        <input
-          type="time"
-          value={nouvelleHeure}
-          onChange={e => setNouvelleHeure(e.target.value)}
-          style={{ ...styles.input, width: "auto", flex: "0 0 110px", padding: "0.5rem" }}
-        />
-        <input
-          type="text"
-          value={nouvelEmoji}
-          onChange={e => setNouvelEmoji(e.target.value)}
-          placeholder="⏰"
-          style={{ ...styles.input, width: "auto", flex: "0 0 56px", textAlign: "center", padding: "0.5rem" }}
-          maxLength={4}
-        />
-        <input
-          type="text"
-          value={nouveauLabel}
-          onChange={e => setNouveauLabel(e.target.value)}
-          onKeyDown={e => e.key === "Enter" && handleAdd()}
-          placeholder="Ex : Goûter"
-          style={{ ...styles.input, flex: 1, padding: "0.5rem" }}
-        />
-        <button onClick={handleAdd} style={{ ...styles.btnPrimary, flexShrink: 0 }}>
-          ➕ Ajouter
-        </button>
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          gap: "0.5rem",
+          background: "oklch(0.18 0.05 145)",
+          border: "1px solid oklch(0.35 0.08 145)",
+          borderRadius: "0.6rem",
+          padding: "0.7rem",
+        }}
+      >
+        <div style={{ fontFamily: "'Baloo 2', sans-serif", fontWeight: 700, fontSize: "0.85rem", color: "#A5D6A7" }}>
+          ➕ Nouveau moment
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: "0.6rem" }}>
+          <input
+            type="time"
+            value={nouvelleHeure}
+            onChange={e => setNouvelleHeure(e.target.value)}
+            style={{ ...styles.input, width: "auto", flex: "0 0 110px", padding: "0.5rem" }}
+          />
+          <EmojiPicker value={nouvelEmoji} onChange={setNouvelEmoji} />
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: "0.6rem" }}>
+          <input
+            type="text"
+            value={nouveauLabel}
+            onChange={e => setNouveauLabel(e.target.value)}
+            onKeyDown={e => e.key === "Enter" && handleAdd()}
+            placeholder="Ex : Goûter"
+            style={{ ...styles.input, flex: 1, padding: "0.6rem" }}
+          />
+          <button onClick={handleAdd} style={{ ...styles.btnPrimary, flexShrink: 0 }}>
+            Ajouter
+          </button>
+        </div>
       </div>
     </div>
   );
