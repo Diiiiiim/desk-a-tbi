@@ -49,6 +49,13 @@ const COMM_BUTTONS: CommButton[] = [
     color: "#E65100",
     textColor: "#ffffff",
   },
+  {
+    label: "J'AI MAL",
+    speech: "j'ai mal",
+    icon: "😣",
+    color: "#AD1457",
+    textColor: "#ffffff",
+  },
 ];
 
 function speak(text: string) {
