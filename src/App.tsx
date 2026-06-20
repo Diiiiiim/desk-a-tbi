@@ -21,6 +21,7 @@ import { DataProvider } from "./contexts/DataContext";
 import { FoyerProvider, useFoyer } from "./contexts/FoyerContext";
 import FoyerSelector from "./pages/FoyerSelector";
 import FoyerNotFound from "./pages/FoyerNotFound";
+import FoyerSuspended from "./pages/FoyerSuspended";
 import SuperAdmin from "./pages/SuperAdmin";
 import Home from "./pages/Home";
 import Activites from "./pages/Activites";
@@ -65,10 +66,14 @@ function FoyerApp({ slug }: { slug: string }) {
 }
 
 function FoyerGate({ slug }: { slug: string }) {
-  const { foyerId, loading, notFound } = useFoyer();
+  const { foyerId, nom, loading, notFound, suspended } = useFoyer();
 
   if (notFound) {
     return <FoyerNotFound slug={slug} />;
+  }
+
+  if (suspended) {
+    return <FoyerSuspended nom={nom} />;
   }
 
   if (loading || !foyerId) {

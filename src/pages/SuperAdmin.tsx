@@ -18,6 +18,7 @@ interface FoyerRow {
   nom: string;
   slug: string;
   created_at: string;
+  actif: boolean;
   nbResidents?: number;
   nbEducateurs?: number;
 }
@@ -68,7 +69,7 @@ export default function SuperAdmin() {
     setLoading(true);
     const { data: foyersData } = await supabase
       .from("foyers")
-      .select("id, nom, slug, created_at")
+      .select("id, nom, slug, created_at, actif")
       .order("created_at", { ascending: false });
 
     if (!foyersData) {
@@ -148,6 +149,20 @@ export default function SuperAdmin() {
       setMsg({ type: "ok", text: `🗑️ Foyer "${confirmDelete.nom}" supprimé` });
       loadFoyers();
     }
+  }
+
+  async function togglePause(f: FoyerRow) {
+    const nouvelEtat = !f.actif;
+    const { error } = await supabase.from("foyers").update({ actif: nouvelEtat }).eq("id", f.id);
+    if (error) {
+      setMsg({ type: "err", text: `❌ Erreur : ${error.message}` });
+      return;
+    }
+    setMsg({
+      type: "ok",
+      text: nouvelEtat ? `▶️ "${f.nom}" réactivé` : `⏸️ "${f.nom}" mis en pause`,
+    });
+    setFoyers(prev => prev.map(x => (x.id === f.id ? { ...x, actif: nouvelEtat } : x)));
   }
 
   // ── Écran de connexion ──────────────────────────────────────────────────────
@@ -247,10 +262,27 @@ export default function SuperAdmin() {
 
           <div style={{ display: "flex", flexDirection: "column", gap: "0.8rem" }}>
             {foyers.map(f => (
-              <div key={f.id} style={styles.foyerRow}>
+              <div key={f.id} style={{ ...styles.foyerRow, opacity: f.actif ? 1 : 0.6 }}>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontFamily: "'Baloo 2', sans-serif", fontWeight: 800, fontSize: "1.1rem", color: "#fff" }}>
-                    {f.nom}
+                  <div style={{ display: "flex", alignItems: "center", gap: "0.6rem" }}>
+                    <div style={{ fontFamily: "'Baloo 2', sans-serif", fontWeight: 800, fontSize: "1.1rem", color: "#fff" }}>
+                      {f.nom}
+                    </div>
+                    {!f.actif && (
+                      <span
+                        style={{
+                          fontFamily: "'Baloo 2', sans-serif",
+                          fontWeight: 700,
+                          fontSize: "0.7rem",
+                          color: "#FFB74D",
+                          background: "oklch(0.25 0.08 60)",
+                          padding: "0.15rem 0.5rem",
+                          borderRadius: "0.4rem",
+                        }}
+                      >
+                        ⏸️ EN PAUSE
+                      </span>
+                    )}
                   </div>
                   <div style={{ fontFamily: "'Baloo 2', sans-serif", fontWeight: 600, fontSize: "0.85rem", color: "oklch(0.60 0.02 240)" }}>
                     /f/{f.slug} • {f.nbResidents} résident{f.nbResidents !== 1 ? "s" : ""} • {f.nbEducateurs} éducateur{f.nbEducateurs !== 1 ? "s" : ""}
@@ -264,6 +296,9 @@ export default function SuperAdmin() {
                 >
                   👁️ Voir
                 </a>
+                <button onClick={() => togglePause(f)} style={{ ...styles.btnSecondary, flexShrink: 0 }}>
+                  {f.actif ? "⏸️ Pause" : "▶️ Reprendre"}
+                </button>
                 <button onClick={() => setConfirmDelete(f)} style={{ ...styles.btnDanger, flexShrink: 0 }}>
                   🗑️
                 </button>

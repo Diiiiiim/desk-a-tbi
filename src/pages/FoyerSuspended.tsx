@@ -1,10 +1,11 @@
 /**
- * FoyerSelector — Page racine ("/") sans slug
- * Ne liste plus les foyers pour des raisons de sécurité/confidentialité
- * (un foyer ne doit pas pouvoir voir ni accéder à l'écran d'un autre foyer).
- * Affiche simplement un écran neutre.
+ * FoyerSuspended — Affiché quand un foyer a été mis en pause par le Super Admin
  */
-export default function FoyerSelector() {
+interface FoyerSuspendedProps {
+  nom: string | null;
+}
+
+export default function FoyerSuspended({ nom }: FoyerSuspendedProps) {
   return (
     <div
       style={{
@@ -20,27 +21,29 @@ export default function FoyerSelector() {
         textAlign: "center",
       }}
     >
-      <div style={{ fontSize: "3.5rem" }}>🏠</div>
+      <div style={{ fontSize: "4rem" }}>⏸️</div>
       <h1
         style={{
           fontFamily: "'Baloo 2', sans-serif",
           fontWeight: 800,
-          fontSize: "2rem",
+          fontSize: "1.8rem",
           color: "#FFD600",
           margin: 0,
         }}
       >
-        Desk-A TBI
+        Service suspendu
       </h1>
       <p
         style={{
           fontFamily: "'Baloo 2', sans-serif",
           fontWeight: 600,
           color: "oklch(0.65 0.02 240)",
-          maxWidth: 420,
+          maxWidth: 480,
         }}
       >
-        Cette application est accessible uniquement via l'adresse fournie par votre établissement.
+        {nom ? <>L'accès pour <strong style={{ color: "#fff" }}>{nom}</strong> est temporairement suspendu.</> : "Ce service est temporairement suspendu."}
+        <br />
+        Contactez votre administrateur pour plus d'informations.
       </p>
     </div>
   );
