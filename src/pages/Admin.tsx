@@ -980,19 +980,17 @@ function TimelineEditor() {
           />
           <EmojiPicker value={nouvelEmoji} onChange={setNouvelEmoji} />
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: "0.6rem" }}>
-          <input
-            type="text"
-            value={nouveauLabel}
-            onChange={e => setNouveauLabel(e.target.value)}
-            onKeyDown={e => e.key === "Enter" && handleAdd()}
-            placeholder="Ex : Goûter"
-            style={{ ...styles.input, flex: 1, padding: "0.6rem" }}
-          />
-          <button onClick={handleAdd} style={{ ...styles.btnPrimary, flexShrink: 0 }}>
-            Ajouter
-          </button>
-        </div>
+        <input
+          type="text"
+          value={nouveauLabel}
+          onChange={e => setNouveauLabel(e.target.value)}
+          onKeyDown={e => e.key === "Enter" && handleAdd()}
+          placeholder="Ex : Goûter"
+          style={{ ...styles.input, width: "100%", padding: "0.7rem", fontSize: "1.05rem" }}
+        />
+        <button onClick={handleAdd} style={{ ...styles.btnPrimary, width: "100%" }}>
+          ➕ Ajouter ce moment
+        </button>
       </div>
     </div>
   );
