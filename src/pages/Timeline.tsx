@@ -1,8 +1,8 @@
 /**
  * Page Timeline — Ligne du temps de la journée
- * Affiche les moments de la journée sous forme de ligne horizontale.
- * Le moment actuel est mis en évidence en très grand, toujours centré
- * automatiquement à l'écran (même si l'heure change pendant l'affichage).
+ * Le moment actuel reste fixe, bien centré sous l'horloge.
+ * C'est le ruban entier de moments qui glisse derrière lui au fil
+ * de la journée (effet "curseur fixe, ruban qui défile").
  */
 import { useEffect, useRef, useState } from "react";
 import CommunicationBar from "@/components/CommunicationBar";
@@ -16,8 +16,11 @@ function heureEnMinutes(heure: string): number {
 
 export default function Timeline() {
   const { data } = useData();
-  const scrollRef = useRef<HTMLDivElement>(null);
-  const activeRef = useRef<HTMLDivElement>(null);
+  const trackRef = useRef<HTMLDivElement>(null);
+  const itemRefs = useRef<Record<number, HTMLDivElement | null>>({});
+  const viewportRef = useRef<HTMLDivElement>(null);
+  const [offset, setOffset] = useState(0);
+
   const [nowMinutes, setNowMinutes] = useState(() => {
     const now = new Date();
     return now.getHours() * 60 + now.getMinutes();
@@ -40,18 +43,25 @@ export default function Timeline() {
     if (heureEnMinutes(moments[i].heure) <= nowMinutes) activeIndex = i;
   }
 
-  // Centrer automatiquement le moment actif — à l'ouverture ET chaque fois
-  // que l'heure change (changement de moment actif), pour qu'il reste
-  // toujours visible et bien au centre sans action de l'utilisateur.
+  // Calcule le décalage du ruban pour que le centre de la pastille active
+  // tombe exactement au centre du viewport — recalculé à chaque changement
+  // de moment actif, de taille de fenêtre, ou de liste de moments.
   useEffect(() => {
-    if (activeRef.current && scrollRef.current) {
-      const container = scrollRef.current;
-      const el = activeRef.current;
-      const scrollTo = el.offsetLeft - container.clientWidth / 2 + el.clientWidth / 2;
-      container.scrollTo({ left: scrollTo, behavior: "smooth" });
+    function recalcule() {
+      const viewport = viewportRef.current;
+      const activeEl = itemRefs.current[activeIndex];
+      if (!viewport || !activeEl) {
+        setOffset(0);
+        return;
+      }
+      const viewportCenter = viewport.clientWidth / 2;
+      const activeCenter = activeEl.offsetLeft + activeEl.clientWidth / 2;
+      setOffset(viewportCenter - activeCenter);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [moments.length, activeIndex]);
+    recalcule();
+    window.addEventListener("resize", recalcule);
+    return () => window.removeEventListener("resize", recalcule);
+  }, [activeIndex, moments.length]);
 
   const heureActuelle = new Date().toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
 
@@ -80,7 +90,7 @@ export default function Timeline() {
             alignItems: "center",
             justifyContent: "center",
             padding: "1.5rem",
-            gap: "1.5rem",
+            gap: "1rem",
             overflow: "hidden",
           }}
         >
@@ -109,26 +119,23 @@ export default function Timeline() {
               Aucun moment configuré. Ajoutez-en dans Administration → Paramètres.
             </div>
           ) : (
+            /* Viewport fixe : le repère central (pastille active) reste toujours ici */
             <div
-              ref={scrollRef}
+              ref={viewportRef}
               style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 0,
-                width: "100%",
-                overflowX: "hidden",
-                padding: "1rem 0",
                 position: "relative",
+                width: "100%",
                 flex: 1,
+                overflow: "hidden",
               }}
             >
-              {/* Ligne horizontale continue */}
+              {/* Ligne horizontale continue, fixe dans le viewport */}
               <div
                 style={{
                   position: "absolute",
                   top: "50%",
-                  left: "4vw",
-                  right: "4vw",
+                  left: 0,
+                  right: 0,
                   height: 6,
                   background: "oklch(0.30 0.04 240)",
                   borderRadius: 3,
@@ -137,101 +144,127 @@ export default function Timeline() {
                 }}
               />
 
-              {moments.map((m, i) => {
-                const isPast = i < activeIndex;
-                const isActive = i === activeIndex;
-                const isFuture = i > activeIndex;
-                const taille = isActive ? 170 : 64;
+              {/* Ruban qui glisse — translaté pour garder l'actif au centre */}
+              <div
+                ref={trackRef}
+                style={{
+                  position: "absolute",
+                  top: "50%",
+                  left: 0,
+                  display: "flex",
+                  alignItems: "center",
+                  transform: `translate(${offset}px, -50%)`,
+                  transition: "transform 600ms ease",
+                }}
+              >
+                {moments.map((m, i) => {
+                  const isPast = i < activeIndex;
+                  const isActive = i === activeIndex;
+                  const isFuture = i > activeIndex;
+                  const taille = isActive ? 170 : 64;
 
-                return (
-                  <div
-                    key={m.id}
-                    ref={isActive ? activeRef : undefined}
-                    style={{
-                      display: "flex",
-                      flexDirection: "column",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      gap: isActive ? "0.9rem" : "0.4rem",
-                      minWidth: isActive ? 220 : 110,
-                      flexShrink: 0,
-                      position: "relative",
-                      zIndex: isActive ? 2 : 1,
-                    }}
-                  >
-                    {/* Pastille emoji */}
+                  return (
                     <div
+                      key={m.id}
+                      ref={el => { itemRefs.current[i] = el; }}
                       style={{
-                        width: taille,
-                        height: taille,
-                        borderRadius: "50%",
                         display: "flex",
+                        flexDirection: "column",
                         alignItems: "center",
                         justifyContent: "center",
-                        fontSize: isActive ? "4.2rem" : "1.6rem",
-                        background: isActive
-                          ? "linear-gradient(135deg, #FFD600 0%, #FFC107 100%)"
-                          : isPast
-                            ? "oklch(0.30 0.06 145)"
-                            : "oklch(0.22 0.04 240)",
-                        border: isActive ? "6px solid #fff" : "3px solid oklch(0.35 0.04 240)",
-                        boxShadow: isActive
-                          ? "0 0 0 10px oklch(0.85 0.18 95 / 0.25), 0 16px 40px rgba(255, 214, 0, 0.6)"
-                          : "none",
-                        transition: "all 250ms ease",
-                        opacity: isFuture ? 0.85 : 1,
+                        gap: isActive ? "0.9rem" : "0.4rem",
+                        minWidth: isActive ? 220 : 110,
+                        flexShrink: 0,
+                        position: "relative",
+                        zIndex: isActive ? 2 : 1,
                       }}
                     >
-                      {isPast ? "✅" : m.emoji}
-                    </div>
+                      {/* Pastille emoji */}
+                      <div
+                        style={{
+                          width: taille,
+                          height: taille,
+                          borderRadius: "50%",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          fontSize: isActive ? "4.2rem" : "1.6rem",
+                          background: isActive
+                            ? "linear-gradient(135deg, #FFD600 0%, #FFC107 100%)"
+                            : isPast
+                              ? "oklch(0.30 0.06 145)"
+                              : "oklch(0.22 0.04 240)",
+                          border: isActive ? "6px solid #fff" : "3px solid oklch(0.35 0.04 240)",
+                          boxShadow: isActive
+                            ? "0 0 0 10px oklch(0.85 0.18 95 / 0.25), 0 16px 40px rgba(255, 214, 0, 0.6)"
+                            : "none",
+                          transition: "all 250ms ease",
+                          opacity: isFuture ? 0.85 : 1,
+                        }}
+                      >
+                        {isPast ? "✅" : m.emoji}
+                      </div>
 
-                    {/* Heure */}
-                    <div
-                      style={{
-                        fontFamily: "'Baloo 2', sans-serif",
-                        fontWeight: 800,
-                        fontSize: isActive ? "1.7rem" : "0.9rem",
-                        color: isActive ? "#FFD600" : "#fff",
-                        transition: "all 250ms ease",
-                      }}
-                    >
-                      {m.heure}
-                    </div>
-
-                    {/* Label */}
-                    <div
-                      style={{
-                        fontFamily: "'Baloo 2', sans-serif",
-                        fontWeight: 700,
-                        fontSize: isActive ? "1.5rem" : "0.78rem",
-                        color: isActive ? "#fff" : "oklch(0.70 0.02 240)",
-                        textAlign: "center",
-                        lineHeight: 1.2,
-                        maxWidth: isActive ? 220 : 100,
-                        transition: "all 250ms ease",
-                      }}
-                    >
-                      {m.label}
-                    </div>
-
-                    {isActive && (
+                      {/* Heure */}
                       <div
                         style={{
                           fontFamily: "'Baloo 2', sans-serif",
                           fontWeight: 800,
-                          fontSize: "1rem",
-                          color: "#0D1B2A",
-                          background: "#FFD600",
-                          padding: "0.35rem 1.1rem",
-                          borderRadius: "1.2rem",
+                          fontSize: isActive ? "1.7rem" : "0.9rem",
+                          color: isActive ? "#FFD600" : "#fff",
+                          transition: "all 250ms ease",
                         }}
                       >
-                        ✨ Maintenant
+                        {m.heure}
                       </div>
-                    )}
-                  </div>
-                );
-              })}
+
+                      {/* Label */}
+                      <div
+                        style={{
+                          fontFamily: "'Baloo 2', sans-serif",
+                          fontWeight: 700,
+                          fontSize: isActive ? "1.5rem" : "0.78rem",
+                          color: isActive ? "#fff" : "oklch(0.70 0.02 240)",
+                          textAlign: "center",
+                          lineHeight: 1.2,
+                          maxWidth: isActive ? 220 : 100,
+                          transition: "all 250ms ease",
+                        }}
+                      >
+                        {m.label}
+                      </div>
+
+                      {isActive && (
+                        <div
+                          style={{
+                            fontFamily: "'Baloo 2', sans-serif",
+                            fontWeight: 800,
+                            fontSize: "1rem",
+                            color: "#0D1B2A",
+                            background: "#FFD600",
+                            padding: "0.35rem 1.1rem",
+                            borderRadius: "1.2rem",
+                          }}
+                        >
+                          ✨ Maintenant
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Repère central fixe (discret, juste pour le marquage visuel) */}
+              <div
+                style={{
+                  position: "absolute",
+                  top: 0,
+                  bottom: 0,
+                  left: "50%",
+                  width: 0,
+                  pointerEvents: "none",
+                }}
+              />
             </div>
           )}
         </main>
@@ -241,4 +274,5 @@ export default function Timeline() {
     </div>
   );
 }
+
 
