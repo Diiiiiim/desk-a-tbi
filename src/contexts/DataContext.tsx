@@ -315,6 +315,7 @@ export function DataProvider({ foyerId, children }: { foyerId: string; children:
 
   const removeResident = useCallback(async (id: string) => {
     await supabase.from('residents').delete().eq('id', id);
+    setAppData(prev => ({ ...prev, residents: prev.residents.filter(r => r.id !== id) }));
   }, [foyerId]);
 
   // ── Éducateurs ─────────────────────────────────────────────────────────────
@@ -333,6 +334,7 @@ export function DataProvider({ foyerId, children }: { foyerId: string; children:
 
   const removeEducateur = useCallback(async (id: string) => {
     await supabase.from('educateurs').delete().eq('id', id);
+    setAppData(prev => ({ ...prev, educateurs: prev.educateurs.filter(e => e.id !== id) }));
   }, [foyerId]);
 
   const toggleEducateurPresence = useCallback(async (id: string) => {
@@ -361,6 +363,7 @@ export function DataProvider({ foyerId, children }: { foyerId: string; children:
 
   const removeActivite = useCallback(async (id: string) => {
     await supabase.from('activites').delete().eq('id', id);
+    setAppData(prev => ({ ...prev, activites: prev.activites.filter(a => a.id !== id) }));
   }, [foyerId]);
 
   // ── Événements ────────────────────────────────────────────────────────────
@@ -385,6 +388,7 @@ export function DataProvider({ foyerId, children }: { foyerId: string; children:
 
   const removeEvenement = useCallback(async (id: string) => {
     await supabase.from('evenements').delete().eq('id', id);
+    setAppData(prev => ({ ...prev, evenements: prev.evenements.filter(e => e.id !== id) }));
   }, [foyerId]);
 
   // ── Modèles ───────────────────────────────────────────────────────────────
@@ -410,6 +414,7 @@ export function DataProvider({ foyerId, children }: { foyerId: string; children:
 
   const removeModele = useCallback(async (id: string) => {
     await supabase.from('modeles_activites').delete().eq('id', id);
+    setAppData(prev => ({ ...prev, modeles: prev.modeles.filter(m => m.id !== id) }));
   }, [foyerId]);
 
   // ── Timeline (ligne du temps) ────────────────────────────────────────────────
@@ -430,6 +435,7 @@ export function DataProvider({ foyerId, children }: { foyerId: string; children:
 
   const removeTimelineMoment = useCallback(async (id: string) => {
     await supabase.from('timeline_moments').delete().eq('id', id);
+    setAppData(prev => ({ ...prev, timeline: prev.timeline.filter(t => t.id !== id) }));
   }, [foyerId]);
 
   // ── Menus ─────────────────────────────────────────────────────────────────

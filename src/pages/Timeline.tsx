@@ -1,7 +1,8 @@
 /**
  * Page Timeline — Ligne du temps de la journée
- * Affiche les moments de la journée sous forme de ligne horizontale scrollable.
- * Le moment actuel est mis en évidence pour aider le résident à se situer.
+ * Affiche les moments de la journée sous forme de ligne horizontale.
+ * Le moment actuel est mis en évidence en très grand, toujours centré
+ * automatiquement à l'écran (même si l'heure change pendant l'affichage).
  */
 import { useEffect, useRef, useState } from "react";
 import CommunicationBar from "@/components/CommunicationBar";
@@ -39,7 +40,9 @@ export default function Timeline() {
     if (heureEnMinutes(moments[i].heure) <= nowMinutes) activeIndex = i;
   }
 
-  // Centrer automatiquement sur le moment actuel à l'ouverture
+  // Centrer automatiquement le moment actif — à l'ouverture ET chaque fois
+  // que l'heure change (changement de moment actif), pour qu'il reste
+  // toujours visible et bien au centre sans action de l'utilisateur.
   useEffect(() => {
     if (activeRef.current && scrollRef.current) {
       const container = scrollRef.current;
@@ -48,7 +51,7 @@ export default function Timeline() {
       container.scrollTo({ left: scrollTo, behavior: "smooth" });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [moments.length]);
+  }, [moments.length, activeIndex]);
 
   const heureActuelle = new Date().toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
 
@@ -110,25 +113,27 @@ export default function Timeline() {
               ref={scrollRef}
               style={{
                 display: "flex",
-                alignItems: "flex-start",
+                alignItems: "center",
                 gap: 0,
                 width: "100%",
-                overflowX: "auto",
-                padding: "2rem 4vw",
+                overflowX: "hidden",
+                padding: "1rem 0",
                 position: "relative",
+                flex: 1,
               }}
             >
               {/* Ligne horizontale continue */}
               <div
                 style={{
                   position: "absolute",
-                  top: "calc(2rem + 34px)",
+                  top: "50%",
                   left: "4vw",
                   right: "4vw",
                   height: 6,
                   background: "oklch(0.30 0.04 240)",
                   borderRadius: 3,
                   zIndex: 0,
+                  transform: "translateY(-50%)",
                 }}
               />
 
@@ -136,6 +141,7 @@ export default function Timeline() {
                 const isPast = i < activeIndex;
                 const isActive = i === activeIndex;
                 const isFuture = i > activeIndex;
+                const taille = isActive ? 170 : 64;
 
                 return (
                   <div
@@ -145,31 +151,34 @@ export default function Timeline() {
                       display: "flex",
                       flexDirection: "column",
                       alignItems: "center",
-                      gap: "0.6rem",
-                      minWidth: 140,
+                      justifyContent: "center",
+                      gap: isActive ? "0.9rem" : "0.4rem",
+                      minWidth: isActive ? 220 : 110,
                       flexShrink: 0,
                       position: "relative",
-                      zIndex: 1,
+                      zIndex: isActive ? 2 : 1,
                     }}
                   >
                     {/* Pastille emoji */}
                     <div
                       style={{
-                        width: isActive ? 88 : 68,
-                        height: isActive ? 88 : 68,
+                        width: taille,
+                        height: taille,
                         borderRadius: "50%",
                         display: "flex",
                         alignItems: "center",
                         justifyContent: "center",
-                        fontSize: isActive ? "2.4rem" : "1.8rem",
+                        fontSize: isActive ? "4.2rem" : "1.6rem",
                         background: isActive
                           ? "linear-gradient(135deg, #FFD600 0%, #FFC107 100%)"
                           : isPast
                             ? "oklch(0.30 0.06 145)"
                             : "oklch(0.22 0.04 240)",
-                        border: isActive ? "4px solid #fff" : "3px solid oklch(0.35 0.04 240)",
-                        boxShadow: isActive ? "0 0 0 6px oklch(0.85 0.18 95 / 0.3), 0 8px 24px rgba(255, 214, 0, 0.5)" : "none",
-                        transition: "all 200ms ease",
+                        border: isActive ? "6px solid #fff" : "3px solid oklch(0.35 0.04 240)",
+                        boxShadow: isActive
+                          ? "0 0 0 10px oklch(0.85 0.18 95 / 0.25), 0 16px 40px rgba(255, 214, 0, 0.6)"
+                          : "none",
+                        transition: "all 250ms ease",
                         opacity: isFuture ? 0.85 : 1,
                       }}
                     >
@@ -181,8 +190,9 @@ export default function Timeline() {
                       style={{
                         fontFamily: "'Baloo 2', sans-serif",
                         fontWeight: 800,
-                        fontSize: isActive ? "1.2rem" : "1rem",
+                        fontSize: isActive ? "1.7rem" : "0.9rem",
                         color: isActive ? "#FFD600" : "#fff",
+                        transition: "all 250ms ease",
                       }}
                     >
                       {m.heure}
@@ -193,10 +203,12 @@ export default function Timeline() {
                       style={{
                         fontFamily: "'Baloo 2', sans-serif",
                         fontWeight: 700,
-                        fontSize: isActive ? "1.05rem" : "0.85rem",
+                        fontSize: isActive ? "1.5rem" : "0.78rem",
                         color: isActive ? "#fff" : "oklch(0.70 0.02 240)",
                         textAlign: "center",
                         lineHeight: 1.2,
+                        maxWidth: isActive ? 220 : 100,
+                        transition: "all 250ms ease",
                       }}
                     >
                       {m.label}
@@ -206,15 +218,15 @@ export default function Timeline() {
                       <div
                         style={{
                           fontFamily: "'Baloo 2', sans-serif",
-                          fontWeight: 700,
-                          fontSize: "0.8rem",
+                          fontWeight: 800,
+                          fontSize: "1rem",
                           color: "#0D1B2A",
                           background: "#FFD600",
-                          padding: "0.2rem 0.7rem",
-                          borderRadius: "1rem",
+                          padding: "0.35rem 1.1rem",
+                          borderRadius: "1.2rem",
                         }}
                       >
-                        Maintenant
+                        ✨ Maintenant
                       </div>
                     )}
                   </div>
@@ -229,3 +241,4 @@ export default function Timeline() {
     </div>
   );
 }
+
