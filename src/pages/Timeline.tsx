@@ -179,7 +179,7 @@ export default function Timeline() {
                         zIndex: isActive ? 2 : 1,
                       }}
                     >
-                      {/* Pastille emoji */}
+                      {/* Pastille emoji ou photo */}
                       <div
                         style={{
                           width: taille,
@@ -200,9 +200,40 @@ export default function Timeline() {
                             : "none",
                           transition: "all 250ms ease",
                           opacity: isFuture ? 0.85 : 1,
+                          overflow: "hidden",
+                          position: "relative",
                         }}
                       >
-                        {isPast ? "✅" : m.emoji}
+                        {m.photoUrl ? (
+                          <>
+                            <img
+                              src={m.photoUrl}
+                              alt={m.label}
+                              style={{
+                                width: "100%",
+                                height: "100%",
+                                objectFit: "cover",
+                                filter: isPast ? "grayscale(0.6) brightness(0.6)" : "none",
+                              }}
+                            />
+                            {isPast && (
+                              <div
+                                style={{
+                                  position: "absolute",
+                                  inset: 0,
+                                  display: "flex",
+                                  alignItems: "center",
+                                  justifyContent: "center",
+                                  fontSize: "1.6rem",
+                                }}
+                              >
+                                ✅
+                              </div>
+                            )}
+                          </>
+                        ) : (
+                          isPast ? "✅" : m.emoji
+                        )}
                       </div>
 
                       {/* Heure */}

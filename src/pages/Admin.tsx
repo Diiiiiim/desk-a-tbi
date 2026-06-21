@@ -884,6 +884,73 @@ function EmojiPicker({ value, onChange }: { value: string; onChange: (emoji: str
   );
 }
 
+// ─── Sous-composant : icône d'un moment — emoji OU photo personnalisée ───────
+function MomentIconPicker({
+  emoji, photoUrl, onEmojiChange, onPhotoChange,
+}: { emoji: string; photoUrl: string; onEmojiChange: (e: string) => void; onPhotoChange: (url: string) => void }) {
+  const inputId = `moment-photo-${Math.random().toString(36).slice(2, 9)}`;
+  const usesPhoto = !!photoUrl;
+
+  async function handleUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (file) onPhotoChange(await readFileAsDataURL(file));
+    e.target.value = "";
+  }
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: "0.4rem", flexShrink: 0 }}>
+      <div style={{ display: "flex", gap: "0.4rem" }}>
+        {/* Aperçu : emoji ou photo */}
+        <div
+          style={{
+            width: 52,
+            height: 52,
+            borderRadius: "0.6rem",
+            overflow: "hidden",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            fontSize: usesPhoto ? undefined : "1.6rem",
+            background: "oklch(0.22 0.04 240)",
+            border: "2px solid oklch(0.35 0.04 240)",
+            flexShrink: 0,
+          }}
+        >
+          {usesPhoto ? (
+            <img src={photoUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+          ) : (
+            emoji || "⏰"
+          )}
+        </div>
+
+        {!usesPhoto && <EmojiPicker value={emoji} onChange={onEmojiChange} />}
+
+        {usesPhoto && (
+          <button onClick={() => onPhotoChange("")} style={{ ...styles.btnDanger, width: 52, height: 52, padding: 0 }} title="Retirer la photo">
+            ✕
+          </button>
+        )}
+      </div>
+
+      <label
+        htmlFor={inputId}
+        style={{
+          fontFamily: "'Baloo 2', sans-serif",
+          fontWeight: 600,
+          fontSize: "0.7rem",
+          color: "#90CAF9",
+          textAlign: "center",
+          cursor: "pointer",
+          textDecoration: "underline",
+        }}
+      >
+        📷 {usesPhoto ? "Changer la photo" : "Utiliser une photo"}
+      </label>
+      <input id={inputId} type="file" accept="image/*" style={{ display: "none" }} onChange={handleUpload} />
+    </div>
+  );
+}
+
 function TimelineEditor() {
   const { data, addTimelineMoment, updateTimelineMoment, removeTimelineMoment } = useData();
   const moments = [...data.timeline].sort((a, b) => a.heure.localeCompare(b.heure));
@@ -891,13 +958,15 @@ function TimelineEditor() {
   const [nouvelleHeure, setNouvelleHeure] = useState("12:00");
   const [nouveauLabel, setNouveauLabel] = useState("");
   const [nouvelEmoji, setNouvelEmoji] = useState("⏰");
+  const [nouvellePhoto, setNouvellePhoto] = useState("");
 
   function handleAdd() {
     if (!nouveauLabel.trim()) return;
     const maxOrdre = moments.reduce((max, m) => Math.max(max, m.ordre), 0);
-    addTimelineMoment({ heure: nouvelleHeure, label: nouveauLabel.trim(), emoji: nouvelEmoji || "⏰", ordre: maxOrdre + 1 });
+    addTimelineMoment({ heure: nouvelleHeure, label: nouveauLabel.trim(), emoji: nouvelEmoji || "⏰", photoUrl: nouvellePhoto, ordre: maxOrdre + 1 });
     setNouveauLabel("");
     setNouvelEmoji("⏰");
+    setNouvellePhoto("");
   }
 
   return (
@@ -931,7 +1000,12 @@ function TimelineEditor() {
                 onChange={e => updateTimelineMoment(m.id, { heure: e.target.value })}
                 style={{ ...styles.input, width: "auto", flex: "0 0 110px", padding: "0.5rem" }}
               />
-              <EmojiPicker value={m.emoji} onChange={emoji => updateTimelineMoment(m.id, { emoji })} />
+              <MomentIconPicker
+                emoji={m.emoji}
+                photoUrl={m.photoUrl}
+                onEmojiChange={emoji => updateTimelineMoment(m.id, { emoji })}
+                onPhotoChange={photoUrl => updateTimelineMoment(m.id, { photoUrl })}
+              />
               <button
                 onClick={() => removeTimelineMoment(m.id)}
                 style={{ ...styles.btnDanger, flexShrink: 0, marginLeft: "auto" }}
@@ -978,7 +1052,12 @@ function TimelineEditor() {
             onChange={e => setNouvelleHeure(e.target.value)}
             style={{ ...styles.input, width: "auto", flex: "0 0 110px", padding: "0.5rem" }}
           />
-          <EmojiPicker value={nouvelEmoji} onChange={setNouvelEmoji} />
+          <MomentIconPicker
+            emoji={nouvelEmoji}
+            photoUrl={nouvellePhoto}
+            onEmojiChange={setNouvelEmoji}
+            onPhotoChange={setNouvellePhoto}
+          />
         </div>
         <input
           type="text"

@@ -67,6 +67,7 @@ export interface TimelineMoment {
   heure: string; // format "HH:MM"
   label: string;
   emoji: string;
+  photoUrl: string;
   ordre: number;
 }
 
@@ -111,7 +112,7 @@ function dbToModele(m: any): ModeleActivite {
 }
 
 function dbToTimelineMoment(t: any): TimelineMoment {
-  return { id: t.id, heure: t.heure, label: t.label, emoji: t.emoji || '⏰', ordre: t.ordre ?? 0 };
+  return { id: t.id, heure: t.heure, label: t.label, emoji: t.emoji || '⏰', photoUrl: t.photo_url || '', ordre: t.ordre ?? 0 };
 }
 
 function dbToMenu(m: any): Menu {
@@ -420,7 +421,8 @@ export function DataProvider({ foyerId, children }: { foyerId: string; children:
   // ── Timeline (ligne du temps) ────────────────────────────────────────────────
   const addTimelineMoment = useCallback(async (moment: Omit<TimelineMoment, 'id'>) => {
     await supabase.from('timeline_moments').insert({
-      foyer_id: foyerId, heure: moment.heure, label: moment.label, emoji: moment.emoji, ordre: moment.ordre,
+      foyer_id: foyerId, heure: moment.heure, label: moment.label, emoji: moment.emoji,
+      photo_url: moment.photoUrl || '', ordre: moment.ordre,
     });
   }, [foyerId]);
 
@@ -429,6 +431,7 @@ export function DataProvider({ foyerId, children }: { foyerId: string; children:
     if (updates.heure !== undefined) dbUpdates.heure = updates.heure;
     if (updates.label !== undefined) dbUpdates.label = updates.label;
     if (updates.emoji !== undefined) dbUpdates.emoji = updates.emoji;
+    if (updates.photoUrl !== undefined) dbUpdates.photo_url = updates.photoUrl;
     if (updates.ordre !== undefined) dbUpdates.ordre = updates.ordre;
     await supabase.from('timeline_moments').update(dbUpdates).eq('id', id);
   }, [foyerId]);
