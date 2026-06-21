@@ -22,7 +22,6 @@ const AIMERAIS_CHOICES = [
 ];
 
 const MAL_CHOICES = [
-  { label: "(sans précision)", emoji: "😣" },
   { label: "à la tête", emoji: "🤕" },
   { label: "au bras", emoji: "💪" },
   { label: "au ventre", emoji: "🤢" },
@@ -30,7 +29,7 @@ const MAL_CHOICES = [
   { label: "au dos", emoji: "🙇" },
   { label: "à la main", emoji: "🤚" },
   { label: "au pied", emoji: "🦶" },
-  { label: "au cou", emoji: "🧠" },
+  { label: "à la gorge", emoji: "🥵" },
 ];
 
 function speak(text: string) {
@@ -52,9 +51,7 @@ export default function Communication() {
     setSelectedChoice(choice.label);
     const fullPhrase = activeTab === "aimerais"
       ? `J'aimerais ${choice.label}`
-      : choice.label === "(sans précision)"
-        ? "J'ai mal"
-        : `J'ai mal ${choice.label}`;
+      : `J'ai mal ${choice.label}`;
     speak(fullPhrase);
     setTimeout(() => setSelectedChoice(null), 2000);
   }
@@ -265,7 +262,7 @@ export default function Communication() {
                     }}
                   >
                     <span style={{ fontSize: "2.5rem" }}>{choice.emoji}</span>
-                    <span>{choice.label === "(sans précision)" ? "J'ai mal" : choice.label}</span>
+                    <span>{choice.label}</span>
                   </button>
                 ))}
               </div>
