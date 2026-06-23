@@ -52,7 +52,8 @@ export default function KiosqueHeader({ title, showBack = false }: KiosqueHeader
     >
       {/* Bouton retour — toujours en haut à gauche */}
       <button
-        onClick={() => navigate("/")}
+        onClick={() => showBack ? navigate("/") : window.location.reload()}
+        title={showBack ? "Retour à l'accueil" : "Actualiser la page"}
         style={{
           background: showBack ? "#1565C0" : "oklch(0.22 0.04 240)",
           border: showBack ? "2px solid #1565C0" : "2px solid oklch(0.35 0.04 240)",
@@ -76,7 +77,7 @@ export default function KiosqueHeader({ title, showBack = false }: KiosqueHeader
           (e.currentTarget as HTMLButtonElement).style.transform = "scale(1)";
         }}
       >
-        {showBack ? "← Accueil" : "🏠"}
+        {showBack ? "← Accueil" : "🔄 Actualiser"}
       </button>
 
       {/* Titre central */}
