@@ -26,6 +26,7 @@ import SuperAdmin from "./pages/SuperAdmin";
 import Home from "./pages/Home";
 import Activites from "./pages/Activites";
 import ActivitesChoix from "./pages/ActivitesChoix";
+import MenuChoix from "./pages/MenuChoix";
 import MenuPage from "./pages/MenuPage";
 import Educateurs from "./pages/Educateurs";
 import Informations from "./pages/Informations";
@@ -47,6 +48,7 @@ function FoyerRoutes() {
       <Route path="/activites/apres-midi">
         {() => <Activites horaire="apres-midi" />}
       </Route>
+      <Route path="/menu" component={MenuChoix} />
       <Route path="/menu-midi">
         {() => <MenuPage type="midi" />}
       </Route>

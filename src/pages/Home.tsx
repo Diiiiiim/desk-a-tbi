@@ -24,18 +24,19 @@ const NAV_BUTTONS = [
     shadow: "#1565C055",
   },
   {
-    label: "Menu du midi",
+    label: "Menu du jour",
     icon: "🍽️",
-    path: "/menu-midi",
+    path: "/menu",
     color: "#2E7D32",
     shadow: "#2E7D3255",
   },
   {
-    label: "Menu du soir",
-    icon: "🌙",
-    path: "/menu-soir",
-    color: "#4A148C",
-    shadow: "#4A148C55",
+    label: "Ma journée",
+    icon: "🕐",
+    path: "/timeline",
+    color: "#FF8F00",
+    shadow: "#FF8F0055",
+    widgetKey: "widgetTimelineActif" as const,
   },
   {
     label: "Éducateurs du jour",
@@ -100,17 +101,6 @@ export default function Home() {
   const [weather, setWeather] = useState<{ temp: string; condition: string } | null>(null);
   const { data } = useData();
   const [birthdays, setBirthdays] = useState<{ today: any[]; next: any | null }>({ today: [], next: null });
-  const [heureActuelle, setHeureActuelle] = useState(() =>
-    new Date().toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })
-  );
-
-  // Horloge — rafraîchie chaque minute
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setHeureActuelle(new Date().toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" }));
-    }, 30 * 1000);
-    return () => clearInterval(interval);
-  }, []);
 
   // Météo réelle (Open-Meteo), basée sur les coordonnées configurées du foyer
   useEffect(() => {
@@ -219,17 +209,6 @@ export default function Home() {
           alignItems: "center",
         }}
       >
-        {data.widgetTimelineActif && (
-          <WidgetPastille
-            onClick={() => navigate("/timeline")}
-            background="linear-gradient(135deg, #FFB300 0%, #FF8F00 100%)"
-            shadow="rgba(255, 143, 0, 0.5)"
-          >
-            <div style={{ fontSize: "1.7rem" }}>🕐</div>
-            <div style={{ fontSize: "0.95rem", marginTop: "0.25rem" }}>{heureActuelle}</div>
-          </WidgetPastille>
-        )}
-
         {data.widgetMeteoActif && weather && (
           <WidgetPastille
             onClick={() => navigate("/meteo")}
@@ -340,7 +319,7 @@ export default function Home() {
               maxWidth: "1200px",
             }}
           >
-            {NAV_BUTTONS.map((btn, i) => (
+            {NAV_BUTTONS.filter(btn => !("widgetKey" in btn) || data[btn.widgetKey]).map((btn, i) => (
               <button
                 key={btn.path}
                 onClick={() => navigate(btn.path)}
