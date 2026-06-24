@@ -23,7 +23,7 @@ function joursRestants(dateStr: string): number {
   return Math.round((target.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
 }
 
-function EventCard({ ev }: { ev: AgendaEvenement }) {
+function EventCard({ ev, onClick }: { ev: AgendaEvenement; onClick: () => void }) {
   const jours = joursRestants(ev.dateDebut);
   const enCours = ev.dateFin && jours <= 0 && joursRestants(ev.dateFin) >= 0;
   const passe = enCours ? false : jours < 0;
@@ -38,6 +38,7 @@ function EventCard({ ev }: { ev: AgendaEvenement }) {
   return (
     <div
       className="kiosque-card"
+      onClick={onClick}
       style={{
         display: "flex",
         alignItems: "center",
@@ -45,9 +46,22 @@ function EventCard({ ev }: { ev: AgendaEvenement }) {
         borderLeft: `6px solid ${passe ? "oklch(0.40 0.02 240)" : "#FFD600"}`,
         opacity: passe ? 0.6 : 1,
         padding: "1.2rem",
+        cursor: "pointer",
+        transition: "transform 0.2s ease",
       }}
+      onMouseEnter={e => { e.currentTarget.style.transform = "scale(1.015)"; }}
+      onMouseLeave={e => { e.currentTarget.style.transform = "scale(1)"; }}
+      title="Cliquez pour agrandir"
     >
-      <div style={{ fontSize: "2.8rem", flexShrink: 0 }}>{ev.emoji}</div>
+      {ev.photoUrl ? (
+        <img
+          src={ev.photoUrl}
+          alt={ev.titre}
+          style={{ width: 70, height: 70, objectFit: "cover", borderRadius: "0.75rem", flexShrink: 0 }}
+        />
+      ) : (
+        <div style={{ fontSize: "2.8rem", flexShrink: 0 }}>{ev.emoji}</div>
+      )}
       <div style={{ flex: 1 }}>
         <div style={{ fontFamily: "'Baloo 2', sans-serif", fontWeight: 800, fontSize: "1.3rem", color: "#FFD600" }}>
           {ev.titre}
@@ -81,14 +95,149 @@ function EventCard({ ev }: { ev: AgendaEvenement }) {
   );
 }
 
+function EventZoomModal({ ev, onClose }: { ev: AgendaEvenement; onClose: () => void }) {
+  const jours = joursRestants(ev.dateDebut);
+  const enCours = ev.dateFin && jours <= 0 && joursRestants(ev.dateFin) >= 0;
+  const passe = enCours ? false : jours < 0;
+
+  let badge = "";
+  if (passe) badge = "Terminé";
+  else if (enCours) badge = "En cours";
+  else if (jours === 0) badge = "Aujourd'hui !";
+  else if (jours === 1) badge = "Demain !";
+  else badge = `Dans ${jours} jours`;
+
+  return (
+    <div
+      style={{
+        position: "fixed",
+        inset: 0,
+        background: "rgba(0, 0, 0, 0.7)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        zIndex: 1000,
+        animation: "fadeIn 0.3s ease-out",
+      }}
+      onClick={onClose}
+    >
+      <div
+        className="kiosque-card"
+        style={{
+          maxWidth: "90vw",
+          maxHeight: "90vh",
+          width: "auto",
+          padding: "2rem",
+          display: "flex",
+          flexDirection: "column",
+          gap: "1.5rem",
+          borderLeft: "8px solid #FFD600",
+          position: "relative",
+          overflowY: "auto",
+          animation: "slideUp 0.3s ease-out",
+        }}
+        onClick={e => e.stopPropagation()}
+      >
+        <button
+          onClick={onClose}
+          style={{
+            position: "absolute",
+            top: "1rem",
+            right: "1rem",
+            background: "#E53935",
+            color: "#fff",
+            border: "none",
+            borderRadius: "50%",
+            width: 48,
+            height: 48,
+            fontSize: "1.5rem",
+            cursor: "pointer",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            fontWeight: "bold",
+            zIndex: 1,
+          }}
+          title="Fermer"
+        >
+          ✕
+        </button>
+
+        {ev.photoUrl ? (
+          <img
+            src={ev.photoUrl}
+            alt={ev.titre}
+            style={{ width: "100%", maxHeight: "45vh", objectFit: "cover", borderRadius: "1rem" }}
+          />
+        ) : (
+          <div style={{ fontSize: "5rem", textAlign: "center" }}>{ev.emoji}</div>
+        )}
+
+        <h2
+          style={{
+            fontFamily: "'Baloo 2', sans-serif",
+            fontWeight: 800,
+            fontSize: "clamp(1.8rem, 4vw, 2.6rem)",
+            color: "#FFD600",
+            margin: 0,
+            paddingRight: "3rem",
+          }}
+        >
+          {ev.titre}
+        </h2>
+
+        <div
+          style={{
+            fontFamily: "'Baloo 2', sans-serif",
+            fontWeight: 700,
+            fontSize: "1.3rem",
+            color: "#0D1B2A",
+            background: "#FFD600",
+            borderRadius: "0.75rem",
+            padding: "0.7rem 1.3rem",
+            display: "inline-block",
+            width: "fit-content",
+          }}
+        >
+          📅 {formatDateFR(ev.dateDebut)}
+          {ev.dateFin && ev.dateFin !== ev.dateDebut && <> → {formatDateFR(ev.dateFin)}</>}
+          {" · "}{badge}
+        </div>
+
+        {ev.description && (
+          <p
+            style={{
+              fontFamily: "'Baloo 2', sans-serif",
+              fontWeight: 500,
+              fontSize: "1.2rem",
+              color: "#fff",
+              margin: 0,
+              lineHeight: 1.6,
+            }}
+          >
+            {ev.description}
+          </p>
+        )}
+
+        <style>{`
+          @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+          @keyframes slideUp { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
+        `}</style>
+      </div>
+    </div>
+  );
+}
+
 export default function MonAgenda() {
   const { data } = useData();
   const [selectedResidentId, setSelectedResidentId] = useState<string | null>(null);
+  const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
 
   const selectedResident = data.residents.find(r => r.id === selectedResidentId);
   const evenements = data.agenda
     .filter(a => a.residentId === selectedResidentId)
     .sort((a, b) => a.dateDebut.localeCompare(b.dateDebut));
+  const selectedEvent = data.agenda.find(a => a.id === selectedEventId);
 
   return (
     <div
@@ -223,7 +372,9 @@ export default function MonAgenda() {
                   Aucun événement programmé pour le moment.
                 </div>
               ) : (
-                evenements.map(ev => <EventCard key={ev.id} ev={ev} />)
+                evenements.map(ev => (
+                  <EventCard key={ev.id} ev={ev} onClick={() => setSelectedEventId(ev.id)} />
+                ))
               )}
             </div>
           )}
@@ -231,6 +382,10 @@ export default function MonAgenda() {
 
         <CommunicationBar />
       </div>
+
+      {selectedEvent && (
+        <EventZoomModal ev={selectedEvent} onClose={() => setSelectedEventId(null)} />
+      )}
     </div>
   );
 }

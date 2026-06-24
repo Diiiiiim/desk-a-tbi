@@ -542,15 +542,14 @@ function TabAgenda() {
   const [residentId, setResidentId] = useState("");
   const [titre, setTitre] = useState("");
   const [emoji, setEmoji] = useState("📌");
+  const [photoUrl, setPhotoUrl] = useState("");
   const [dateDebut, setDateDebut] = useState(() => new Date().toISOString().split("T")[0]);
   const [dateFin, setDateFin] = useState("");
   const [description, setDescription] = useState("");
   const [editId, setEditId] = useState<string | null>(null);
 
-  const AGENDA_EMOJIS = ["📌", "👨‍👩‍👧", "✈️", "🏖️", "🎉", "🏥", "🚗", "🎁", "📚", "⚽", "🎂", "🏠"];
-
   function resetForm() {
-    setResidentId(""); setTitre(""); setEmoji("📌");
+    setResidentId(""); setTitre(""); setEmoji("📌"); setPhotoUrl("");
     setDateDebut(new Date().toISOString().split("T")[0]); setDateFin(""); setDescription("");
     setEditId(null);
   }
@@ -558,7 +557,7 @@ function TabAgenda() {
   function handleSave() {
     if (!residentId || !titre.trim()) return;
     const ev = {
-      residentId, titre: titre.trim(), emoji,
+      residentId, titre: titre.trim(), emoji, photoUrl,
       dateDebut, dateFin: dateFin || null, description: description.trim(),
     };
     if (editId) {
@@ -572,7 +571,7 @@ function TabAgenda() {
   function startEdit(id: string) {
     const ev = data.agenda.find(a => a.id === id);
     if (!ev) return;
-    setEditId(id); setResidentId(ev.residentId); setTitre(ev.titre); setEmoji(ev.emoji);
+    setEditId(id); setResidentId(ev.residentId); setTitre(ev.titre); setEmoji(ev.emoji); setPhotoUrl(ev.photoUrl);
     setDateDebut(ev.dateDebut); setDateFin(ev.dateFin || ""); setDescription(ev.description);
   }
 
@@ -602,18 +601,13 @@ function TabAgenda() {
         <input style={styles.input} placeholder="Titre (ex : Retour en famille)" value={titre} onChange={e => setTitre(e.target.value)} />
 
         <div>
-          <div style={styles.subLabel}>Icône</div>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: "0.4rem" }}>
-            {AGENDA_EMOJIS.map(em => (
-              <button
-                key={em}
-                style={{ ...styles.chip, fontSize: "1.3rem", background: emoji === em ? "#FFD600" : "oklch(0.22 0.04 240)", padding: "0.4rem 0.7rem" }}
-                onClick={() => setEmoji(em)}
-              >
-                {em}
-              </button>
-            ))}
-          </div>
+          <div style={styles.subLabel}>Icône ou photo</div>
+          <MomentIconPicker
+            emoji={emoji}
+            photoUrl={photoUrl}
+            onEmojiChange={setEmoji}
+            onPhotoChange={setPhotoUrl}
+          />
         </div>
 
         <div style={{ display: "flex", gap: "0.6rem" }}>
@@ -644,7 +638,11 @@ function TabAgenda() {
           const resident = data.residents.find(r => r.id === ev.residentId);
           return (
             <div key={ev.id} className="kiosque-card" style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
-              <div style={{ fontSize: "2rem", flexShrink: 0 }}>{ev.emoji}</div>
+              {ev.photoUrl ? (
+                <img src={ev.photoUrl} alt={ev.titre} style={{ width: 52, height: 52, objectFit: "cover", borderRadius: "0.5rem", flexShrink: 0 }} />
+              ) : (
+                <div style={{ fontSize: "2rem", flexShrink: 0 }}>{ev.emoji}</div>
+              )}
               <div style={{ flex: 1 }}>
                 <div style={styles.listName}>
                   {ev.titre} — <span style={{ color: "#FFD600" }}>{resident?.prenom || "?"}</span>

@@ -73,6 +73,7 @@ export interface AgendaEvenement {
   dateDebut: string; // YYYY-MM-DD
   dateFin: string | null; // null si événement d'un seul jour
   emoji: string;
+  photoUrl: string;
   description: string;
 }
 
@@ -128,7 +129,7 @@ function dbToAgendaEvenement(a: any): AgendaEvenement {
   return {
     id: a.id, residentId: a.resident_id, titre: a.titre,
     dateDebut: a.date_debut, dateFin: a.date_fin || null,
-    emoji: a.emoji || '📌', description: a.description || '',
+    emoji: a.emoji || '📌', photoUrl: a.photo_url || '', description: a.description || '',
   };
 }
 
@@ -449,7 +450,8 @@ export function DataProvider({ foyerId, children }: { foyerId: string; children:
   const addAgendaEvenement = useCallback(async (ev: Omit<AgendaEvenement, 'id'>) => {
     await supabase.from('agenda_personnel').insert({
       foyer_id: foyerId, resident_id: ev.residentId, titre: ev.titre,
-      date_debut: ev.dateDebut, date_fin: ev.dateFin, emoji: ev.emoji, description: ev.description,
+      date_debut: ev.dateDebut, date_fin: ev.dateFin, emoji: ev.emoji,
+      photo_url: ev.photoUrl || '', description: ev.description,
     });
   }, [foyerId]);
 
@@ -460,6 +462,7 @@ export function DataProvider({ foyerId, children }: { foyerId: string; children:
     if (updates.dateDebut !== undefined) dbUpdates.date_debut = updates.dateDebut;
     if (updates.dateFin !== undefined) dbUpdates.date_fin = updates.dateFin;
     if (updates.emoji !== undefined) dbUpdates.emoji = updates.emoji;
+    if (updates.photoUrl !== undefined) dbUpdates.photo_url = updates.photoUrl;
     if (updates.description !== undefined) dbUpdates.description = updates.description;
     await supabase.from('agenda_personnel').update(dbUpdates).eq('id', id);
   }, [foyerId]);
