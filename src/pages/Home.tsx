@@ -260,6 +260,17 @@ export default function Home() {
             ) : null}
           </WidgetPastille>
         )}
+
+        {data.widgetAgendaActif && (
+          <WidgetPastille
+            onClick={() => navigate("/mon-agenda")}
+            background="linear-gradient(135deg, #7B68EE 0%, #5B4FCF 100%)"
+            shadow="rgba(123, 104, 238, 0.5)"
+          >
+            <div style={{ fontSize: "1.7rem" }}>🗓️</div>
+            <div style={{ fontSize: "0.75rem", marginTop: "0.25rem", textAlign: "center" }}>Mon agenda</div>
+          </WidgetPastille>
+        )}
       </div>
 
       {/* Contenu au-dessus de l'overlay */}

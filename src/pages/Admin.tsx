@@ -8,10 +8,10 @@ import { useLocation } from "wouter";
 import PinDialog from "@/components/PinDialog";
 import PhotoCircle from "@/components/PhotoCircle";
 import { useData } from "@/contexts/DataContext";
-import type { Activite, Evenement, ModeleActivite, TimelineMoment } from "@/contexts/DataContext";
+import type { Activite, Evenement, TimelineMoment } from "@/contexts/DataContext";
 import { supabase } from "@/lib/supabase";
 
-type AdminTab = "residents" | "educateurs" | "activites" | "evenements" | "modeles" | "menus" | "parametres";
+type AdminTab = "residents" | "educateurs" | "activites" | "evenements" | "agenda" | "menus" | "parametres";
 
 // ─── Utilitaire : upload fichier → Supabase Storage (bucket "media") ──────────
 // Retourne l'URL publique de l'image. Fallback en base64 si l'upload échoue.
@@ -207,6 +207,8 @@ function TabEducateurs() {
 }
 
 // ─── Sous-composant : onglet Activités ────────────────────────────────────────
+const JOURS_SEMAINE = ["lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi", "dimanche"] as const;
+
 function TabActivites() {
   const { data, addActivite, updateActivite, removeActivite } = useData();
   const [nom, setNom] = useState("");
@@ -215,6 +217,9 @@ function TabActivites() {
   const [residentIds, setResidentIds] = useState<string[]>([]);
   const [educateurIds, setEducateurIds] = useState<string[]>([]);
   const [editId, setEditId] = useState<string | null>(null);
+  const [typeRecurrence, setTypeRecurrence] = useState<"ponctuelle" | "recurrente">("ponctuelle");
+  const [joursSemaine, setJoursSemaine] = useState<string[]>([]);
+  const [dateActivite, setDateActivite] = useState(() => new Date().toISOString().split("T")[0]);
   const fileRef = useRef<HTMLInputElement>(null);
 
   async function handlePicto(e: React.ChangeEvent<HTMLInputElement>) {
@@ -226,9 +231,23 @@ function TabActivites() {
     return arr.includes(id) ? arr.filter(x => x !== id) : [...arr, id];
   }
 
+  function toggleJour(j: string) {
+    setJoursSemaine(prev => prev.includes(j) ? prev.filter(x => x !== j) : [...prev, j]);
+  }
+
   function handleSave() {
     if (!nom.trim()) return;
-    const activite: Omit<Activite, "id"> = { nom: nom.trim(), horaire, pictogramme, residentIds, educateurIds };
+    if (typeRecurrence === "recurrente" && joursSemaine.length === 0) {
+      alert("⚠️ Sélectionnez au moins un jour pour une activité récurrente");
+      return;
+    }
+    const activite: Omit<Activite, "id"> = {
+      nom: nom.trim(), horaire, pictogramme, residentIds, educateurIds,
+      typeRecurrence,
+      joursSemaine: joursSemaine as Activite["joursSemaine"],
+      actif: true,
+      dateActivite: typeRecurrence === "ponctuelle" ? dateActivite : null,
+    };
     if (editId) {
       updateActivite(editId, activite);
       setEditId(null);
@@ -240,6 +259,8 @@ function TabActivites() {
 
   function resetForm() {
     setNom(""); setHoraire("matin"); setPictogramme(""); setResidentIds([]); setEducateurIds([]);
+    setTypeRecurrence("ponctuelle"); setJoursSemaine([]);
+    setDateActivite(new Date().toISOString().split("T")[0]);
   }
 
   function startEdit(id: string) {
@@ -247,12 +268,33 @@ function TabActivites() {
     if (!a) return;
     setEditId(id); setNom(a.nom); setHoraire(a.horaire);
     setPictogramme(a.pictogramme); setResidentIds(a.residentIds); setEducateurIds(a.educateurIds);
+    setTypeRecurrence(a.typeRecurrence); setJoursSemaine(a.joursSemaine);
+    setDateActivite(a.dateActivite || new Date().toISOString().split("T")[0]);
   }
+
+  function handleClone(id: string) {
+    const a = data.activites.find(x => x.id === id);
+    if (a) {
+      addActivite({
+        nom: a.nom + " (copie)", horaire: a.horaire, pictogramme: a.pictogramme,
+        residentIds: a.residentIds, educateurIds: a.educateurIds,
+        typeRecurrence: a.typeRecurrence, joursSemaine: a.joursSemaine,
+        actif: true, dateActivite: a.dateActivite,
+      });
+    }
+  }
+
+  // Tri : récurrentes d'abord (groupées), puis ponctuelles par date
+  const activitesTriees = [...data.activites].sort((a, b) => {
+    if (a.typeRecurrence !== b.typeRecurrence) return a.typeRecurrence === "recurrente" ? -1 : 1;
+    if (a.typeRecurrence === "ponctuelle") return (a.dateActivite || "").localeCompare(b.dateActivite || "");
+    return a.nom.localeCompare(b.nom);
+  });
 
   return (
     <div style={{ display: "flex", gap: "1.5rem", height: "100%", overflow: "hidden" }}>
       {/* Formulaire */}
-      <div className="kiosque-card" style={{ width: 360, flexShrink: 0, display: "flex", flexDirection: "column", gap: "0.8rem", overflowY: "auto" }}>
+      <div className="kiosque-card" style={{ width: 380, flexShrink: 0, display: "flex", flexDirection: "column", gap: "0.8rem", overflowY: "auto" }}>
         <h3 style={styles.formTitle}>{editId ? "Modifier activité" : "Ajouter activité"}</h3>
         <input style={styles.input} placeholder="Nom de l'activité" value={nom} onChange={e => setNom(e.target.value)} />
 
@@ -267,6 +309,47 @@ function TabActivites() {
             </button>
           ))}
         </div>
+
+        {/* Type de récurrence */}
+        <div>
+          <div style={styles.subLabel}>Fréquence</div>
+          <div style={{ display: "flex", gap: "0.5rem" }}>
+            <button
+              style={{ ...styles.btnSecondary, flex: 1, background: typeRecurrence === "ponctuelle" ? "#FFD600" : "oklch(0.22 0.04 240)", color: typeRecurrence === "ponctuelle" ? "#0D1B2A" : "#fff", border: `2px solid ${typeRecurrence === "ponctuelle" ? "#FFD600" : "oklch(0.35 0.04 240)"}` }}
+              onClick={() => setTypeRecurrence("ponctuelle")}
+            >
+              📅 Date précise
+            </button>
+            <button
+              style={{ ...styles.btnSecondary, flex: 1, background: typeRecurrence === "recurrente" ? "#FFD600" : "oklch(0.22 0.04 240)", color: typeRecurrence === "recurrente" ? "#0D1B2A" : "#fff", border: `2px solid ${typeRecurrence === "recurrente" ? "#FFD600" : "oklch(0.35 0.04 240)"}` }}
+              onClick={() => setTypeRecurrence("recurrente")}
+            >
+              🔁 Récurrente
+            </button>
+          </div>
+        </div>
+
+        {typeRecurrence === "ponctuelle" ? (
+          <div>
+            <div style={styles.subLabel}>Date</div>
+            <input type="date" style={styles.input} value={dateActivite} onChange={e => setDateActivite(e.target.value)} />
+          </div>
+        ) : (
+          <div>
+            <div style={styles.subLabel}>Jours de la semaine</div>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: "0.4rem" }}>
+              {JOURS_SEMAINE.map(j => (
+                <button
+                  key={j}
+                  style={{ ...styles.chip, background: joursSemaine.includes(j) ? "#FFD600" : "oklch(0.22 0.04 240)", color: joursSemaine.includes(j) ? "#0D1B2A" : "#fff" }}
+                  onClick={() => toggleJour(j)}
+                >
+                  {j.slice(0, 3).charAt(0).toUpperCase() + j.slice(1, 3)}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
         <button style={styles.btnSecondary} onClick={() => fileRef.current?.click()}>🖼️ Pictogramme</button>
         <input ref={fileRef} type="file" accept="image/*" style={{ display: "none" }} onChange={handlePicto} />
@@ -308,20 +391,34 @@ function TabActivites() {
 
       {/* Liste */}
       <div style={{ flex: 1, overflowY: "auto", display: "flex", flexDirection: "column", gap: "0.75rem" }}>
-        {data.activites.map(a => (
-          <div key={a.id} className="kiosque-card" style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
+        {activitesTriees.map(a => (
+          <div key={a.id} className="kiosque-card" style={{ display: "flex", alignItems: "center", gap: "1rem", opacity: a.actif ? 1 : 0.55 }}>
             {a.pictogramme && <img src={a.pictogramme} alt={a.nom} style={{ width: 56, height: 56, objectFit: "contain", borderRadius: "0.5rem", flexShrink: 0 }} />}
             <div style={{ flex: 1 }}>
-              <div style={styles.listName}>{a.nom}</div>
+              <div style={styles.listName}>
+                {a.nom} {!a.actif && <span style={{ fontSize: "0.75rem", color: "#FFB74D" }}>(désactivée)</span>}
+              </div>
               <div style={{ fontSize: "0.9rem", color: "oklch(0.65 0.02 240)" }}>
-                {a.horaire === "matin" ? "🕙 10h–12h" : "🕑 14h–16h"} · {a.residentIds.length} résident(s) · {a.educateurIds.length} éducateur(s)
+                {a.horaire === "matin" ? "🕙 10h–12h" : "🕑 14h–16h"} ·{" "}
+                {a.typeRecurrence === "recurrente"
+                  ? `🔁 ${a.joursSemaine.map(j => j.slice(0, 3)).join(", ")}`
+                  : `📅 ${a.dateActivite}`}
+                {" · "}{a.residentIds.length} résident(s) · {a.educateurIds.length} éducateur(s)
               </div>
             </div>
+            <button
+              style={{ ...styles.btnSmall, background: a.actif ? "#4CAF50" : "oklch(0.35 0.04 240)" }}
+              onClick={() => updateActivite(a.id, { actif: !a.actif })}
+              title={a.actif ? "Désactiver" : "Activer"}
+            >
+              {a.actif ? "✓" : "✕"}
+            </button>
             <button style={styles.btnEdit} onClick={() => startEdit(a.id)}>✏️ Modifier</button>
+            <button style={styles.btnSmall} onClick={() => handleClone(a.id)} title="Dupliquer">📋</button>
             <button style={styles.btnDanger} onClick={() => removeActivite(a.id)}>🗑️</button>
           </div>
         ))}
-        {data.activites.length === 0 && <EmptyState text="Aucune activité programmée" />}
+        {activitesTriees.length === 0 && <EmptyState text="Aucune activité programmée" />}
       </div>
     </div>
   );
@@ -439,134 +536,130 @@ function TabEvenements() {
   );
 }
 
-function TabModeles() {
-  const { data, addModele, updateModele, removeModele } = useData();
-  const [nom, setNom] = useState("");
-  const [jour, setJour] = useState<"lundi" | "mardi" | "mercredi" | "jeudi" | "vendredi" | "samedi" | "dimanche">("lundi");
-  const [horaire, setHoraire] = useState<"matin" | "apres-midi">("matin");
-  const [pictogramme, setPictogramme] = useState("");
-  const [residentIds, setResidentIds] = useState<string[]>([]);
-  const [educateurIds, setEducateurIds] = useState<string[]>([]);
+// ─── Sous-composant : onglet Agenda personnel (par résident) ─────────────────
+function TabAgenda() {
+  const { data, addAgendaEvenement, updateAgendaEvenement, removeAgendaEvenement } = useData();
+  const [residentId, setResidentId] = useState("");
+  const [titre, setTitre] = useState("");
+  const [emoji, setEmoji] = useState("📌");
+  const [dateDebut, setDateDebut] = useState(() => new Date().toISOString().split("T")[0]);
+  const [dateFin, setDateFin] = useState("");
+  const [description, setDescription] = useState("");
   const [editId, setEditId] = useState<string | null>(null);
-  const fileRef = useRef<HTMLInputElement>(null);
 
-  async function handlePictogramme(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (file) setPictogramme(await readFileAsDataURL(file));
+  const AGENDA_EMOJIS = ["📌", "👨‍👩‍👧", "✈️", "🏖️", "🎉", "🏥", "🚗", "🎁", "📚", "⚽", "🎂", "🏠"];
+
+  function resetForm() {
+    setResidentId(""); setTitre(""); setEmoji("📌");
+    setDateDebut(new Date().toISOString().split("T")[0]); setDateFin(""); setDescription("");
+    setEditId(null);
   }
 
   function handleSave() {
-    if (!nom.trim()) {
-      alert("⚠️ Veuillez entrer un nom pour l'activité");
-      return;
-    }
+    if (!residentId || !titre.trim()) return;
+    const ev = {
+      residentId, titre: titre.trim(), emoji,
+      dateDebut, dateFin: dateFin || null, description: description.trim(),
+    };
     if (editId) {
-      updateModele(editId, { nom: nom.trim(), jour, horaire, pictogramme, residentIds, educateurIds });
-      setEditId(null);
+      updateAgendaEvenement(editId, ev);
     } else {
-      addModele({ nom: nom.trim(), jour, horaire, pictogramme, residentIds, educateurIds, actif: true });
+      addAgendaEvenement(ev);
     }
-    setNom("");
-    setPictogramme("");
-    setResidentIds([]);
-    setEducateurIds([]);
-  }
-
-  function handleClone(id: string) {
-    const m = data.modeles.find(x => x.id === id);
-    if (m) {
-      addModele({ nom: m.nom + " (copie)", jour: m.jour, horaire: m.horaire, pictogramme: m.pictogramme, residentIds: m.residentIds, educateurIds: m.educateurIds, actif: true });
-    }
+    resetForm();
   }
 
   function startEdit(id: string) {
-    const m = data.modeles.find(x => x.id === id);
-    if (m) {
-      setNom(m.nom);
-      setJour(m.jour);
-      setHoraire(m.horaire);
-      setPictogramme(m.pictogramme);
-      setResidentIds(m.residentIds);
-      setEducateurIds(m.educateurIds);
-      setEditId(id);
-    }
+    const ev = data.agenda.find(a => a.id === id);
+    if (!ev) return;
+    setEditId(id); setResidentId(ev.residentId); setTitre(ev.titre); setEmoji(ev.emoji);
+    setDateDebut(ev.dateDebut); setDateFin(ev.dateFin || ""); setDescription(ev.description);
   }
 
-  const jours = ["lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi", "dimanche"] as const;
+  const agendaTrie = [...data.agenda].sort((a, b) => a.dateDebut.localeCompare(b.dateDebut));
 
   return (
-    <div style={styles.tabContainer}>
-      <h2 style={styles.formTitle}>📅 Modèles d'activités récurrentes</h2>
-      <div style={styles.formGroup}>
-        <input type="text" placeholder="Nom de l'activité" value={nom} onChange={e => setNom(e.target.value)} style={styles.input} />
-        <select value={jour} onChange={e => setJour(e.target.value as typeof jour)} style={styles.input}>
-          {jours.map(j => <option key={j} value={j}>{j.charAt(0).toUpperCase() + j.slice(1)}</option>)}
-        </select>
-        <select value={horaire} onChange={e => setHoraire(e.target.value as typeof horaire)} style={styles.input}>
-          <option value="matin">10h - 12h (Matin)</option>
-          <option value="apres-midi">14h - 16h (Après-midi)</option>
-        </select>
-        {pictogramme && <img src={pictogramme} alt="pictogramme" style={{ width: 80, height: 80, objectFit: "contain", borderRadius: "0.5rem" }} />}
-        <button style={styles.btnSecondary} onClick={() => fileRef.current?.click()}>📷 Pictogramme</button>
-        <input ref={fileRef} type="file" accept="image/*" style={{ display: "none" }} onChange={handlePictogramme} />
-        <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
-          {(data.residents || []).map(r => (
-            <button
-              key={r.id}
-              onClick={() => setResidentIds(residentIds.includes(r.id) ? residentIds.filter(id => id !== r.id) : [...residentIds, r.id])}
-              style={{ ...styles.chip, background: residentIds.includes(r.id) ? "#FFD600" : "#e0e0e0", color: residentIds.includes(r.id) ? "#000" : "#666" }}
-            >
-              {r.prenom}
-            </button>
-          ))}
-        </div>
-        <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
-          {(data.educateurs || []).map(e => (
-            <button
-              key={e.id}
-              onClick={() => setEducateurIds(educateurIds.includes(e.id) ? educateurIds.filter(id => id !== e.id) : [...educateurIds, e.id])}
-              style={{ ...styles.chip, background: educateurIds.includes(e.id) ? "#4FC3F7" : "#e0e0e0", color: educateurIds.includes(e.id) ? "#000" : "#666" }}
-            >
-              {e.prenom}
-            </button>
-          ))}
-        </div>
-        {nom && (
-          <div style={{ background: "oklch(0.18 0.04 240)", border: "2px solid #FFD600", borderRadius: "0.6rem", padding: "0.8rem", marginTop: "0.5rem" }}>
-            <div style={{ fontFamily: "'Baloo 2', sans-serif", fontWeight: 700, fontSize: "0.9rem", color: "#FFD600", marginBottom: "0.4rem" }}>📋 Aperçu</div>
-            <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.3rem" }}>
-              {pictogramme && <img src={pictogramme} alt="aperçu" style={{ width: 32, height: 32, objectFit: "contain" }} />}
-              <strong style={{ color: "#fff" }}>{nom}</strong>
-            </div>
-            <div style={{ fontSize: "0.8rem", color: "oklch(0.65 0.02 240)" }}>{jour.charAt(0).toUpperCase() + jour.slice(1)} • {horaire === "matin" ? "10h-12h" : "14h-16h"}</div>
-            <div style={{ fontSize: "0.8rem", color: "oklch(0.65 0.02 240)", marginTop: "0.2rem" }}>👤 {residentIds.length} résident(s) • 👥 {educateurIds.length} éducateur(s)</div>
+    <div style={{ display: "flex", gap: "1.5rem", height: "100%", overflow: "hidden" }}>
+      {/* Formulaire */}
+      <div className="kiosque-card" style={{ width: 380, flexShrink: 0, display: "flex", flexDirection: "column", gap: "0.8rem", overflowY: "auto" }}>
+        <h3 style={styles.formTitle}>{editId ? "Modifier l'événement" : "Ajouter un événement personnel"}</h3>
+
+        <div>
+          <div style={styles.subLabel}>Résident concerné</div>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: "0.4rem" }}>
+            {data.residents.map(r => (
+              <button
+                key={r.id}
+                style={{ ...styles.chip, background: residentId === r.id ? "#FFD600" : "oklch(0.22 0.04 240)", color: residentId === r.id ? "#0D1B2A" : "#fff" }}
+                onClick={() => setResidentId(r.id)}
+              >
+                {r.prenom}
+              </button>
+            ))}
           </div>
-        )}
-        <button style={styles.btnPrimary} onClick={handleSave}>{editId ? "✏️ Modifier" : "➕ Ajouter"}</button>
+        </div>
+
+        <input style={styles.input} placeholder="Titre (ex : Retour en famille)" value={titre} onChange={e => setTitre(e.target.value)} />
+
+        <div>
+          <div style={styles.subLabel}>Icône</div>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: "0.4rem" }}>
+            {AGENDA_EMOJIS.map(em => (
+              <button
+                key={em}
+                style={{ ...styles.chip, fontSize: "1.3rem", background: emoji === em ? "#FFD600" : "oklch(0.22 0.04 240)", padding: "0.4rem 0.7rem" }}
+                onClick={() => setEmoji(em)}
+              >
+                {em}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div style={{ display: "flex", gap: "0.6rem" }}>
+          <div style={{ flex: 1 }}>
+            <div style={styles.subLabel}>Date de début</div>
+            <input type="date" style={styles.input} value={dateDebut} onChange={e => setDateDebut(e.target.value)} />
+          </div>
+          <div style={{ flex: 1 }}>
+            <div style={styles.subLabel}>Date de fin (optionnel)</div>
+            <input type="date" style={styles.input} value={dateFin} onChange={e => setDateFin(e.target.value)} min={dateDebut} />
+          </div>
+        </div>
+
+        <textarea
+          style={{ ...styles.input, minHeight: 70, resize: "vertical" }}
+          placeholder="Description (optionnel)"
+          value={description}
+          onChange={e => setDescription(e.target.value)}
+        />
+
+        <button style={styles.btnPrimary} onClick={handleSave}>{editId ? "✅ Enregistrer" : "➕ Ajouter"}</button>
+        {editId && <button style={styles.btnDanger} onClick={resetForm}>Annuler</button>}
       </div>
-      <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem", maxHeight: "400px", overflowY: "auto" }}>
-        {(data.modeles || []).map(m => (
-          <div key={m.id} style={styles.chip}>
-            <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", flex: 1 }}>
-              {m.pictogramme && <img src={m.pictogramme} alt={m.nom} style={{ width: 40, height: 40, objectFit: "contain" }} />}
-              <div>
-                <strong>{m.nom}</strong>
-                <div style={{ fontSize: "0.75rem", color: "#666" }}>{m.jour} - {m.horaire === "matin" ? "10h-12h" : "14h-16h"}</div>
+
+      {/* Liste */}
+      <div style={{ flex: 1, overflowY: "auto", display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+        {agendaTrie.map(ev => {
+          const resident = data.residents.find(r => r.id === ev.residentId);
+          return (
+            <div key={ev.id} className="kiosque-card" style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
+              <div style={{ fontSize: "2rem", flexShrink: 0 }}>{ev.emoji}</div>
+              <div style={{ flex: 1 }}>
+                <div style={styles.listName}>
+                  {ev.titre} — <span style={{ color: "#FFD600" }}>{resident?.prenom || "?"}</span>
+                </div>
+                <div style={{ fontSize: "0.9rem", color: "oklch(0.65 0.02 240)" }}>
+                  📅 {ev.dateDebut}{ev.dateFin && ev.dateFin !== ev.dateDebut ? ` → ${ev.dateFin}` : ""}
+                  {ev.description && ` · ${ev.description}`}
+                </div>
               </div>
+              <button style={styles.btnEdit} onClick={() => startEdit(ev.id)}>✏️ Modifier</button>
+              <button style={styles.btnDanger} onClick={() => removeAgendaEvenement(ev.id)}>🗑️</button>
             </div>
-            <button
-              style={{ ...styles.btnSmall, background: m.actif ? "#4CAF50" : "#ccc" }}
-              onClick={() => updateModele(m.id, { actif: !m.actif })}
-              title={m.actif ? "Désactiver" : "Activer"}
-            >
-              {m.actif ? "✓" : "✕"}
-            </button>
-            <button style={styles.btnSmall} onClick={() => startEdit(m.id)}>✏️</button>
-            <button style={styles.btnSmall} onClick={() => handleClone(m.id)}>📋</button>
-            <button style={styles.btnDanger} onClick={() => removeModele(m.id)}>🗑️</button>
-          </div>
-        ))}
-        {(data.modeles || []).length === 0 && <EmptyState text="Aucun modèle créé" />}
+          );
+        })}
+        {agendaTrie.length === 0 && <EmptyState text="Aucun événement personnel programmé" />}
       </div>
     </div>
   );
@@ -1335,6 +1428,12 @@ function TabParametres() {
           checked={data.widgetTimelineActif}
           onChange={v => updateWidgets({ widgetTimelineActif: v })}
         />
+        <WidgetToggleRow
+          emoji="🗓️"
+          label="Mon agenda (événements personnels)"
+          checked={data.widgetAgendaActif}
+          onChange={v => updateWidgets({ widgetAgendaActif: v })}
+        />
       </div>
 
       {/* Ligne du temps — gestion des moments */}
@@ -1415,7 +1514,7 @@ export default function Admin() {
     { id: "educateurs", label: "Éducateurs", icon: "👥" },
     { id: "activites", label: "Activités", icon: "🎨" },
     { id: "evenements", label: "Événements", icon: "📅" },
-    { id: "modeles", label: "Modèles", icon: "📋" },
+    { id: "agenda", label: "Agenda", icon: "🗓️" },
     { id: "menus", label: "Menus", icon: "🍽️" },
     { id: "parametres", label: "Paramètres", icon: "⚙️" },
   ];
@@ -1514,7 +1613,7 @@ export default function Admin() {
         {activeTab === "educateurs" && <TabEducateurs />}
         {activeTab === "activites" && <TabActivites />}
         {activeTab === "evenements" && <TabEvenements />}
-        {activeTab === "modeles" && <TabModeles />}
+        {activeTab === "agenda" && <TabAgenda />}
         {activeTab === "menus" && <TabMenus />}
         {activeTab === "parametres" && <TabParametres />}
       </div>

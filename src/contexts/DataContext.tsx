@@ -23,6 +23,8 @@ export interface Educateur {
   dateNaissance?: string;
 }
 
+export type JourSemaine = 'lundi' | 'mardi' | 'mercredi' | 'jeudi' | 'vendredi' | 'samedi' | 'dimanche';
+
 export interface Activite {
   id: string;
   nom: string;
@@ -30,6 +32,10 @@ export interface Activite {
   pictogramme: string;
   residentIds: string[];
   educateurIds: string[];
+  typeRecurrence: 'ponctuelle' | 'recurrente';
+  joursSemaine: JourSemaine[]; // utilisé seulement si récurrente
+  actif: boolean;
+  dateActivite: string | null; // utilisé seulement si ponctuelle (format YYYY-MM-DD)
 }
 
 export interface Evenement {
@@ -51,17 +57,6 @@ export interface Menu {
   description: string;
 }
 
-export interface ModeleActivite {
-  id: string;
-  nom: string;
-  jour: 'lundi' | 'mardi' | 'mercredi' | 'jeudi' | 'vendredi' | 'samedi' | 'dimanche';
-  horaire: 'matin' | 'apres-midi';
-  pictogramme: string;
-  residentIds: string[];
-  educateurIds: string[];
-  actif: boolean;
-}
-
 export interface TimelineMoment {
   id: string;
   heure: string; // format "HH:MM"
@@ -71,14 +66,24 @@ export interface TimelineMoment {
   ordre: number;
 }
 
+export interface AgendaEvenement {
+  id: string;
+  residentId: string;
+  titre: string;
+  dateDebut: string; // YYYY-MM-DD
+  dateFin: string | null; // null si événement d'un seul jour
+  emoji: string;
+  description: string;
+}
+
 export interface AppData {
   residents: Resident[];
   educateurs: Educateur[];
   activites: Activite[];
   evenements: Evenement[];
-  modeles: ModeleActivite[];
   menus: { midi: Menu; soir: Menu };
   timeline: TimelineMoment[];
+  agenda: AgendaEvenement[];
   nomFoyer: string;
   codePin: string;
   ville: string;
@@ -87,6 +92,7 @@ export interface AppData {
   widgetMeteoActif: boolean;
   widgetAnniversaireActif: boolean;
   widgetTimelineActif: boolean;
+  widgetAgendaActif: boolean;
 }
 
 // ─── Convertisseurs DB → App (snake_case → camelCase) ─────────────────────────
@@ -100,19 +106,30 @@ function dbToEducateur(e: any): Educateur {
 }
 
 function dbToActivite(a: any): Activite {
-  return { id: a.id, nom: a.nom, horaire: a.horaire, pictogramme: a.pictogramme_url || '', residentIds: a.resident_ids || [], educateurIds: a.educateur_ids || [] };
+  return {
+    id: a.id, nom: a.nom, horaire: a.horaire, pictogramme: a.pictogramme_url || '',
+    residentIds: a.resident_ids || [], educateurIds: a.educateur_ids || [],
+    typeRecurrence: a.type_recurrence || 'ponctuelle',
+    joursSemaine: a.jours_semaine || [],
+    actif: a.actif ?? true,
+    dateActivite: a.date_activite || null,
+  };
 }
 
 function dbToEvenement(e: any): Evenement {
   return { id: e.id, titre: e.titre, date: e.date_evenement, description: e.description, photo: e.photo_url || '', residentIds: e.resident_ids || [], educateurIds: e.educateur_ids || [] };
 }
 
-function dbToModele(m: any): ModeleActivite {
-  return { id: m.id, nom: m.nom, jour: m.jour, horaire: m.horaire, pictogramme: m.pictogramme_url || '', residentIds: m.resident_ids || [], educateurIds: m.educateur_ids || [], actif: m.actif };
-}
-
 function dbToTimelineMoment(t: any): TimelineMoment {
   return { id: t.id, heure: t.heure, label: t.label, emoji: t.emoji || '⏰', photoUrl: t.photo_url || '', ordre: t.ordre ?? 0 };
+}
+
+function dbToAgendaEvenement(a: any): AgendaEvenement {
+  return {
+    id: a.id, residentId: a.resident_id, titre: a.titre,
+    dateDebut: a.date_debut, dateFin: a.date_fin || null,
+    emoji: a.emoji || '📌', description: a.description || '',
+  };
 }
 
 function dbToMenu(m: any): Menu {
@@ -144,29 +161,32 @@ interface DataContextType {
   addEvenement: (evenement: Omit<Evenement, 'id'>) => Promise<void>;
   updateEvenement: (id: string, updates: Partial<Evenement>) => Promise<void>;
   removeEvenement: (id: string) => Promise<void>;
-  addModele: (modele: Omit<ModeleActivite, 'id'>) => Promise<void>;
-  updateModele: (id: string, updates: Partial<ModeleActivite>) => Promise<void>;
-  removeModele: (id: string) => Promise<void>;
   addTimelineMoment: (moment: Omit<TimelineMoment, 'id'>) => Promise<void>;
   updateTimelineMoment: (id: string, updates: Partial<TimelineMoment>) => Promise<void>;
   removeTimelineMoment: (id: string) => Promise<void>;
+  addAgendaEvenement: (ev: Omit<AgendaEvenement, 'id'>) => Promise<void>;
+  updateAgendaEvenement: (id: string, updates: Partial<AgendaEvenement>) => Promise<void>;
+  removeAgendaEvenement: (id: string) => Promise<void>;
   updateMenu: (type: 'midi' | 'soir', updates: Partial<Menu>) => Promise<void>;
   updateNomFoyer: (nom: string) => Promise<void>;
   updateCodePin: (pin: string) => Promise<void>;
   updateVille: (ville: string, lat: number, lon: number) => Promise<void>;
-  updateWidgets: (updates: { widgetMeteoActif?: boolean; widgetAnniversaireActif?: boolean; widgetTimelineActif?: boolean }) => Promise<void>;
+  updateWidgets: (updates: { widgetMeteoActif?: boolean; widgetAnniversaireActif?: boolean; widgetTimelineActif?: boolean; widgetAgendaActif?: boolean }) => Promise<void>;
   resetData: () => void;
 }
 
 const DataContext = createContext<DataContextType | null>(null);
 
 const today = new Date().toISOString().split('T')[0];
+const JOURS: JourSemaine[] = ['dimanche', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi'];
+const jourSemaineActuel: JourSemaine = JOURS[new Date().getDay()];
 
 const DEFAULT_MENU: Menu = { imageRepas: '', imageFeculent: '', imageLegume: '', imageAccompagnement: '', imageDessert: '', description: '' };
 const DEFAULT_APP_DATA: AppData = {
-  residents: [], educateurs: [], activites: [], evenements: [], modeles: [],
+  residents: [], educateurs: [], activites: [], evenements: [],
   menus: { midi: DEFAULT_MENU, soir: DEFAULT_MENU },
   timeline: [],
+  agenda: [],
   nomFoyer: 'Foyer — Borne Interactive',
   codePin: '1234',
   ville: 'Peruwelz',
@@ -175,6 +195,7 @@ const DEFAULT_APP_DATA: AppData = {
   widgetMeteoActif: true,
   widgetAnniversaireActif: true,
   widgetTimelineActif: true,
+  widgetAgendaActif: true,
 };
 
 // IDs menus du jour (pour upsert)
@@ -195,20 +216,20 @@ export function DataProvider({ foyerId, children }: { foyerId: string; children:
     if (data) setAppData(prev => ({ ...prev, educateurs: data.map(dbToEducateur) }));
   };
   const reloadActivites = async () => {
-    const { data } = await supabase.from('activites').select('*').eq('foyer_id', foyerId).eq('date_activite', today);
+    const { data } = await supabase.from('activites').select('*').eq('foyer_id', foyerId);
     if (data) setAppData(prev => ({ ...prev, activites: data.map(dbToActivite) }));
   };
   const reloadEvenements = async () => {
     const { data } = await supabase.from('evenements').select('*').eq('foyer_id', foyerId).order('date_evenement');
     if (data) setAppData(prev => ({ ...prev, evenements: data.map(dbToEvenement) }));
   };
-  const reloadModeles = async () => {
-    const { data } = await supabase.from('modeles_activites').select('*').eq('foyer_id', foyerId).order('nom');
-    if (data) setAppData(prev => ({ ...prev, modeles: data.map(dbToModele) }));
-  };
   const reloadTimeline = async () => {
     const { data } = await supabase.from('timeline_moments').select('*').eq('foyer_id', foyerId).order('ordre');
     if (data) setAppData(prev => ({ ...prev, timeline: data.map(dbToTimelineMoment) }));
+  };
+  const reloadAgenda = async () => {
+    const { data } = await supabase.from('agenda_personnel').select('*').eq('foyer_id', foyerId).order('date_debut');
+    if (data) setAppData(prev => ({ ...prev, agenda: data.map(dbToAgendaEvenement) }));
   };
   const reloadMenus = async () => {
     const { data } = await supabase.from('menus').select('*').eq('foyer_id', foyerId).eq('date_menu', today);
@@ -238,18 +259,18 @@ export function DataProvider({ foyerId, children }: { foyerId: string; children:
         { data: educateursData },
         { data: activitesData },
         { data: evenementsData },
-        { data: modelesData },
         { data: menusData },
         { data: timelineData },
+        { data: agendaData },
       ] = await Promise.all([
         supabase.from('foyers').select('*').eq('id', foyerId).single(),
         supabase.from('residents').select('*').eq('foyer_id', foyerId).order('prenom'),
         supabase.from('educateurs').select('*').eq('foyer_id', foyerId).order('prenom'),
-        supabase.from('activites').select('*').eq('foyer_id', foyerId).eq('date_activite', today),
+        supabase.from('activites').select('*').eq('foyer_id', foyerId),
         supabase.from('evenements').select('*').eq('foyer_id', foyerId).order('date_evenement'),
-        supabase.from('modeles_activites').select('*').eq('foyer_id', foyerId).order('nom'),
         supabase.from('menus').select('*').eq('foyer_id', foyerId).eq('date_menu', today),
         supabase.from('timeline_moments').select('*').eq('foyer_id', foyerId).order('ordre'),
+        supabase.from('agenda_personnel').select('*').eq('foyer_id', foyerId).order('date_debut'),
       ]);
 
       const midi = menusData?.find((m: any) => m.type === 'midi');
@@ -262,12 +283,12 @@ export function DataProvider({ foyerId, children }: { foyerId: string; children:
         educateurs: (educateursData || []).map(dbToEducateur),
         activites: (activitesData || []).map(dbToActivite),
         evenements: (evenementsData || []).map(dbToEvenement),
-        modeles: (modelesData || []).map(dbToModele),
         menus: {
           midi: midi ? dbToMenu(midi) : DEFAULT_MENU,
           soir: soir ? dbToMenu(soir) : DEFAULT_MENU,
         },
         timeline: (timelineData || []).map(dbToTimelineMoment),
+        agenda: (agendaData || []).map(dbToAgendaEvenement),
         nomFoyer: foyerData?.nom || 'Foyer — Borne Interactive',
         codePin: foyerData?.code_pin || '1234',
         ville: foyerData?.ville || 'Peruwelz',
@@ -276,6 +297,7 @@ export function DataProvider({ foyerId, children }: { foyerId: string; children:
         widgetMeteoActif: foyerData?.widget_meteo_actif ?? true,
         widgetAnniversaireActif: foyerData?.widget_anniversaire_actif ?? true,
         widgetTimelineActif: foyerData?.widget_timeline_actif ?? true,
+        widgetAgendaActif: foyerData?.widget_agenda_actif ?? true,
       });
       setLoading(false);
       } catch (err) {
@@ -294,8 +316,8 @@ export function DataProvider({ foyerId, children }: { foyerId: string; children:
       .on('postgres_changes', { event: '*', schema: 'public', table: 'educateurs', filter: `foyer_id=eq.${foyerId}` }, reloadEducateurs)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'activites', filter: `foyer_id=eq.${foyerId}` }, reloadActivites)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'evenements', filter: `foyer_id=eq.${foyerId}` }, reloadEvenements)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'modeles_activites', filter: `foyer_id=eq.${foyerId}` }, reloadModeles)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'timeline_moments', filter: `foyer_id=eq.${foyerId}` }, reloadTimeline)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'agenda_personnel', filter: `foyer_id=eq.${foyerId}` }, reloadAgenda)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'menus', filter: `foyer_id=eq.${foyerId}` }, reloadMenus)
       .subscribe();
     return () => { supabase.removeChannel(channel); };
@@ -348,7 +370,11 @@ export function DataProvider({ foyerId, children }: { foyerId: string; children:
     await supabase.from('activites').insert({
       foyer_id: foyerId, nom: activite.nom, horaire: activite.horaire,
       pictogramme_url: activite.pictogramme, resident_ids: activite.residentIds,
-      educateur_ids: activite.educateurIds, date_activite: today,
+      educateur_ids: activite.educateurIds,
+      type_recurrence: activite.typeRecurrence,
+      jours_semaine: activite.joursSemaine,
+      actif: activite.actif,
+      date_activite: activite.typeRecurrence === 'ponctuelle' ? (activite.dateActivite || today) : null,
     });
   }, [foyerId]);
 
@@ -359,6 +385,10 @@ export function DataProvider({ foyerId, children }: { foyerId: string; children:
     if (updates.pictogramme !== undefined) dbUpdates.pictogramme_url = updates.pictogramme;
     if (updates.residentIds !== undefined) dbUpdates.resident_ids = updates.residentIds;
     if (updates.educateurIds !== undefined) dbUpdates.educateur_ids = updates.educateurIds;
+    if (updates.typeRecurrence !== undefined) dbUpdates.type_recurrence = updates.typeRecurrence;
+    if (updates.joursSemaine !== undefined) dbUpdates.jours_semaine = updates.joursSemaine;
+    if (updates.actif !== undefined) dbUpdates.actif = updates.actif;
+    if (updates.dateActivite !== undefined) dbUpdates.date_activite = updates.dateActivite;
     await supabase.from('activites').update(dbUpdates).eq('id', id);
   }, [foyerId]);
 
@@ -392,32 +422,6 @@ export function DataProvider({ foyerId, children }: { foyerId: string; children:
     setAppData(prev => ({ ...prev, evenements: prev.evenements.filter(e => e.id !== id) }));
   }, [foyerId]);
 
-  // ── Modèles ───────────────────────────────────────────────────────────────
-  const addModele = useCallback(async (modele: Omit<ModeleActivite, 'id'>) => {
-    await supabase.from('modeles_activites').insert({
-      foyer_id: foyerId, nom: modele.nom, jour: modele.jour, horaire: modele.horaire,
-      pictogramme_url: modele.pictogramme, resident_ids: modele.residentIds,
-      educateur_ids: modele.educateurIds, actif: modele.actif,
-    });
-  }, [foyerId]);
-
-  const updateModele = useCallback(async (id: string, updates: Partial<ModeleActivite>) => {
-    const dbUpdates: any = {};
-    if (updates.nom !== undefined) dbUpdates.nom = updates.nom;
-    if (updates.jour !== undefined) dbUpdates.jour = updates.jour;
-    if (updates.horaire !== undefined) dbUpdates.horaire = updates.horaire;
-    if (updates.pictogramme !== undefined) dbUpdates.pictogramme_url = updates.pictogramme;
-    if (updates.residentIds !== undefined) dbUpdates.resident_ids = updates.residentIds;
-    if (updates.educateurIds !== undefined) dbUpdates.educateur_ids = updates.educateurIds;
-    if (updates.actif !== undefined) dbUpdates.actif = updates.actif;
-    await supabase.from('modeles_activites').update(dbUpdates).eq('id', id);
-  }, [foyerId]);
-
-  const removeModele = useCallback(async (id: string) => {
-    await supabase.from('modeles_activites').delete().eq('id', id);
-    setAppData(prev => ({ ...prev, modeles: prev.modeles.filter(m => m.id !== id) }));
-  }, [foyerId]);
-
   // ── Timeline (ligne du temps) ────────────────────────────────────────────────
   const addTimelineMoment = useCallback(async (moment: Omit<TimelineMoment, 'id'>) => {
     await supabase.from('timeline_moments').insert({
@@ -439,6 +443,30 @@ export function DataProvider({ foyerId, children }: { foyerId: string; children:
   const removeTimelineMoment = useCallback(async (id: string) => {
     await supabase.from('timeline_moments').delete().eq('id', id);
     setAppData(prev => ({ ...prev, timeline: prev.timeline.filter(t => t.id !== id) }));
+  }, [foyerId]);
+
+  // ── Agenda personnel (par résident) ─────────────────────────────────────────
+  const addAgendaEvenement = useCallback(async (ev: Omit<AgendaEvenement, 'id'>) => {
+    await supabase.from('agenda_personnel').insert({
+      foyer_id: foyerId, resident_id: ev.residentId, titre: ev.titre,
+      date_debut: ev.dateDebut, date_fin: ev.dateFin, emoji: ev.emoji, description: ev.description,
+    });
+  }, [foyerId]);
+
+  const updateAgendaEvenement = useCallback(async (id: string, updates: Partial<AgendaEvenement>) => {
+    const dbUpdates: any = {};
+    if (updates.residentId !== undefined) dbUpdates.resident_id = updates.residentId;
+    if (updates.titre !== undefined) dbUpdates.titre = updates.titre;
+    if (updates.dateDebut !== undefined) dbUpdates.date_debut = updates.dateDebut;
+    if (updates.dateFin !== undefined) dbUpdates.date_fin = updates.dateFin;
+    if (updates.emoji !== undefined) dbUpdates.emoji = updates.emoji;
+    if (updates.description !== undefined) dbUpdates.description = updates.description;
+    await supabase.from('agenda_personnel').update(dbUpdates).eq('id', id);
+  }, [foyerId]);
+
+  const removeAgendaEvenement = useCallback(async (id: string) => {
+    await supabase.from('agenda_personnel').delete().eq('id', id);
+    setAppData(prev => ({ ...prev, agenda: prev.agenda.filter(a => a.id !== id) }));
   }, [foyerId]);
 
   // ── Menus ─────────────────────────────────────────────────────────────────
@@ -479,11 +507,12 @@ export function DataProvider({ foyerId, children }: { foyerId: string; children:
     setAppData(prev => ({ ...prev, ville, meteoLat: lat, meteoLon: lon }));
   }, [foyerId]);
 
-  const updateWidgets = useCallback(async (updates: { widgetMeteoActif?: boolean; widgetAnniversaireActif?: boolean; widgetTimelineActif?: boolean }) => {
+  const updateWidgets = useCallback(async (updates: { widgetMeteoActif?: boolean; widgetAnniversaireActif?: boolean; widgetTimelineActif?: boolean; widgetAgendaActif?: boolean }) => {
     const dbUpdates: any = {};
     if (updates.widgetMeteoActif !== undefined) dbUpdates.widget_meteo_actif = updates.widgetMeteoActif;
     if (updates.widgetAnniversaireActif !== undefined) dbUpdates.widget_anniversaire_actif = updates.widgetAnniversaireActif;
     if (updates.widgetTimelineActif !== undefined) dbUpdates.widget_timeline_actif = updates.widgetTimelineActif;
+    if (updates.widgetAgendaActif !== undefined) dbUpdates.widget_agenda_actif = updates.widgetAgendaActif;
     await supabase.from('foyers').update(dbUpdates).eq('id', foyerId);
     setAppData(prev => ({ ...prev, ...updates }));
   }, [foyerId]);
@@ -504,8 +533,8 @@ export function DataProvider({ foyerId, children }: { foyerId: string; children:
       addEducateur, updateEducateur, removeEducateur, toggleEducateurPresence,
       addActivite, updateActivite, removeActivite,
       addEvenement, updateEvenement, removeEvenement,
-      addModele, updateModele, removeModele,
       addTimelineMoment, updateTimelineMoment, removeTimelineMoment,
+      addAgendaEvenement, updateAgendaEvenement, removeAgendaEvenement,
       updateMenu,
       updateNomFoyer,
       updateCodePin,
@@ -522,4 +551,22 @@ export function useData() {
   const ctx = useContext(DataContext);
   if (!ctx) throw new Error('useData must be used within DataProvider');
   return ctx;
+}
+
+/**
+ * Filtre les activités à afficher aujourd'hui :
+ * - ponctuelles dont dateActivite === aujourd'hui
+ * - récurrentes dont joursSemaine inclut le jour actuel
+ * - dans les deux cas, seulement si actif === true
+ */
+export function getActivitesDuJour(activites: Activite[]): Activite[] {
+  const todayStr = new Date().toISOString().split('T')[0];
+  const jours: JourSemaine[] = ['dimanche', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi'];
+  const jourActuel = jours[new Date().getDay()];
+
+  return activites.filter(a => {
+    if (!a.actif) return false;
+    if (a.typeRecurrence === 'ponctuelle') return a.dateActivite === todayStr;
+    return a.joursSemaine.includes(jourActuel);
+  });
 }

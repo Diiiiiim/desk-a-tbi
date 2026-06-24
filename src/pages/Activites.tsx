@@ -8,7 +8,7 @@ import { useState } from "react";
 import CommunicationBar from "@/components/CommunicationBar";
 import KiosqueHeader from "@/components/KiosqueHeader";
 import PhotoCircle from "@/components/PhotoCircle";
-import { useData } from "@/contexts/DataContext";
+import { useData, getActivitesDuJour } from "@/contexts/DataContext";
 import type { Activite } from "@/contexts/DataContext";
 
 interface ActiviteZoomModalProps {
@@ -234,20 +234,8 @@ function ActiviteBloc({
 }) {
   const { data } = useData();
   const [selectedActiviteId, setSelectedActiviteId] = useState<string | null>(null);
-  
-  const today = new Date().toLocaleDateString('fr-FR', { weekday: 'long' }).toLowerCase();
-  const modelesDuJour = (data.modeles || []).filter(m => m.jour === today && m.horaire === horaire && m.actif);
-  const activites = [
-    ...data.activites.filter(a => a.horaire === horaire),
-    ...modelesDuJour.map(m => ({
-      id: m.id,
-      nom: m.nom,
-      horaire: m.horaire as "matin" | "apres-midi",
-      pictogramme: m.pictogramme,
-      residentIds: m.residentIds,
-      educateurIds: m.educateurIds,
-    })),
-  ];
+
+  const activites = getActivitesDuJour(data.activites).filter(a => a.horaire === horaire);
 
   const selectedActivite = activites.find(a => a.id === selectedActiviteId);
 

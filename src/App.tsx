@@ -30,6 +30,7 @@ import Educateurs from "./pages/Educateurs";
 import Informations from "./pages/Informations";
 import Meteo from "./pages/Meteo";
 import Timeline from "./pages/Timeline";
+import MonAgenda from "./pages/MonAgenda";
 import Communication from "./pages/Communication";
 import Anniversaires from "./pages/Anniversaires";
 import Admin from "./pages/Admin";
@@ -49,6 +50,7 @@ function FoyerRoutes() {
       <Route path="/informations" component={Informations} />
       <Route path="/meteo" component={Meteo} />
       <Route path="/timeline" component={Timeline} />
+      <Route path="/mon-agenda" component={MonAgenda} />
       <Route path="/communication" component={Communication} />
       <Route path="/anniversaires" component={Anniversaires} />
       <Route path="/admin" component={Admin} />
