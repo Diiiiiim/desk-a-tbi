@@ -25,6 +25,7 @@ import FoyerSuspended from "./pages/FoyerSuspended";
 import SuperAdmin from "./pages/SuperAdmin";
 import Home from "./pages/Home";
 import Activites from "./pages/Activites";
+import ActivitesChoix from "./pages/ActivitesChoix";
 import MenuPage from "./pages/MenuPage";
 import Educateurs from "./pages/Educateurs";
 import Informations from "./pages/Informations";
@@ -39,7 +40,13 @@ function FoyerRoutes() {
   return (
     <Switch>
       <Route path="/" component={Home} />
-      <Route path="/activites" component={Activites} />
+      <Route path="/activites" component={ActivitesChoix} />
+      <Route path="/activites/matin">
+        {() => <Activites horaire="matin" />}
+      </Route>
+      <Route path="/activites/apres-midi">
+        {() => <Activites horaire="apres-midi" />}
+      </Route>
       <Route path="/menu-midi">
         {() => <MenuPage type="midi" />}
       </Route>

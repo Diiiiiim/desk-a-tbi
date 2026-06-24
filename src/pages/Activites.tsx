@@ -436,7 +436,15 @@ function ActiviteBloc({
   );
 }
 
-export default function Activites() {
+interface ActivitesProps {
+  horaire: "matin" | "apres-midi";
+}
+
+export default function Activites({ horaire }: ActivitesProps) {
+  const label = horaire === "matin" ? "🌅 Activités du matin" : "☀️ Activités de l'après-midi";
+  const color = horaire === "matin" ? "#FFD600" : "#4FC3F7";
+  const creneauLabel = horaire === "matin" ? "10h – 12h" : "14h – 16h";
+
   return (
     <div
       style={{
@@ -451,20 +459,18 @@ export default function Activites() {
     >
       <div style={{ position: "absolute", inset: 0, background: "oklch(0.10 0.04 240 / 0.10)", zIndex: 0, pointerEvents: "none" }} />
       <div style={{ position: "relative", zIndex: 1, display: "flex", flexDirection: "column", height: "100%" }}>
-        <KiosqueHeader title="🎨 Activités du jour" showBack />
+        <KiosqueHeader title={label} showBack />
 
         <main
           className="page-enter"
           style={{
             flex: 1,
             display: "flex",
-            gap: "1.5rem",
             padding: "1.5rem",
             overflow: "hidden",
           }}
         >
-          <ActiviteBloc horaire="matin" label="10h – 12h" color="#FFD600" />
-          <ActiviteBloc horaire="apres-midi" label="14h – 16h" color="#4FC3F7" />
+          <ActiviteBloc horaire={horaire} label={creneauLabel} color={color} />
         </main>
 
         <CommunicationBar />
