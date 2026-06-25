@@ -22,6 +22,7 @@ import { FoyerProvider, useFoyer } from "./contexts/FoyerContext";
 import FoyerSelector from "./pages/FoyerSelector";
 import FoyerNotFound from "./pages/FoyerNotFound";
 import FoyerSuspended from "./pages/FoyerSuspended";
+import BrandBadge from "./components/BrandBadge";
 import SuperAdmin from "./pages/SuperAdmin";
 import Home from "./pages/Home";
 import Activites from "./pages/Activites";
@@ -39,33 +40,36 @@ import Admin from "./pages/Admin";
 
 function FoyerRoutes() {
   return (
-    <Switch>
-      <Route path="/" component={Home} />
-      <Route path="/activites" component={ActivitesChoix} />
-      <Route path="/activites/matin">
-        {() => <Activites horaire="matin" />}
-      </Route>
-      <Route path="/activites/apres-midi">
-        {() => <Activites horaire="apres-midi" />}
-      </Route>
-      <Route path="/menu" component={MenuChoix} />
-      <Route path="/menu-midi">
-        {() => <MenuPage type="midi" />}
-      </Route>
-      <Route path="/menu-soir">
-        {() => <MenuPage type="soir" />}
-      </Route>
-      <Route path="/educateurs" component={Educateurs} />
-      <Route path="/informations" component={Informations} />
-      <Route path="/meteo" component={Meteo} />
-      <Route path="/timeline" component={Timeline} />
-      <Route path="/mon-agenda" component={MonAgenda} />
-      <Route path="/communication" component={Communication} />
-      <Route path="/anniversaires" component={Anniversaires} />
-      <Route path="/admin" component={Admin} />
-      <Route path="/404" component={NotFound} />
-      <Route component={NotFound} />
-    </Switch>
+    <>
+      <BrandBadge />
+      <Switch>
+        <Route path="/" component={Home} />
+        <Route path="/activites" component={ActivitesChoix} />
+        <Route path="/activites/matin">
+          {() => <Activites horaire="matin" />}
+        </Route>
+        <Route path="/activites/apres-midi">
+          {() => <Activites horaire="apres-midi" />}
+        </Route>
+        <Route path="/menu" component={MenuChoix} />
+        <Route path="/menu-midi">
+          {() => <MenuPage type="midi" />}
+        </Route>
+        <Route path="/menu-soir">
+          {() => <MenuPage type="soir" />}
+        </Route>
+        <Route path="/educateurs" component={Educateurs} />
+        <Route path="/informations" component={Informations} />
+        <Route path="/meteo" component={Meteo} />
+        <Route path="/timeline" component={Timeline} />
+        <Route path="/mon-agenda" component={MonAgenda} />
+        <Route path="/communication" component={Communication} />
+        <Route path="/anniversaires" component={Anniversaires} />
+        <Route path="/admin" component={Admin} />
+        <Route path="/404" component={NotFound} />
+        <Route component={NotFound} />
+      </Switch>
+    </>
   );
 }
 
