@@ -43,7 +43,7 @@ export default function FoyerSuspended({ nom }: FoyerSuspendedProps) {
       >
         {nom ? <>L'accès pour <strong style={{ color: "#fff" }}>{nom}</strong> est temporairement suspendu.</> : "Ce service est temporairement suspendu."}
         <br />
-        Contactez votre administrateur pour plus d'informations.
+        Contactez <strong style={{ color: "#fff" }}>Goemaere Dimitri</strong> pour plus d'informations.
       </p>
     </div>
   );
