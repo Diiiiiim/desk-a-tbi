@@ -74,7 +74,7 @@ export default function Anniversaires() {
     upcoming_bdays.sort((a, b) => (a.daysUntil || 0) - (b.daysUntil || 0));
 
     setTodayBirthdays(today_bdays);
-    setUpcomingBirthdays(upcoming_bdays.slice(0, 10)); // Afficher les 10 prochains
+    setUpcomingBirthdays(upcoming_bdays); // Afficher tout le monde, sans limite
   }, [data.residents, data.educateurs]);
 
   return (
