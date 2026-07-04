@@ -233,7 +233,7 @@ export function DataProvider({ foyerId, children }: { foyerId: string; children:
     if (data) setAppData(prev => ({ ...prev, agenda: data.map(dbToAgendaEvenement) }));
   };
   const reloadMenus = async () => {
-    const { data } = await supabase.from('menus').select('*').eq('foyer_id', foyerId).eq('date_menu', today);
+    const { data } = await supabase.from('menus').select('*').eq('foyer_id', foyerId).order('date_menu', { ascending: false });
     if (data) {
       const midi = data.find((m: any) => m.type === 'midi');
       const soir = data.find((m: any) => m.type === 'soir');
@@ -269,7 +269,7 @@ export function DataProvider({ foyerId, children }: { foyerId: string; children:
         supabase.from('educateurs').select('*').eq('foyer_id', foyerId).order('prenom'),
         supabase.from('activites').select('*').eq('foyer_id', foyerId),
         supabase.from('evenements').select('*').eq('foyer_id', foyerId).order('date_evenement'),
-        supabase.from('menus').select('*').eq('foyer_id', foyerId).eq('date_menu', today),
+        supabase.from('menus').select('*').eq('foyer_id', foyerId).order('date_menu', { ascending: false }),
         supabase.from('timeline_moments').select('*').eq('foyer_id', foyerId).order('ordre'),
         supabase.from('agenda_personnel').select('*').eq('foyer_id', foyerId).order('date_debut'),
       ]);
