@@ -34,9 +34,9 @@ export default function Educateurs() {
             display: "flex",
             flexDirection: "column",
             alignItems: "center",
-            justifyContent: "center",
+            justifyContent: presents.length === 0 ? "center" : "flex-start",
             padding: "2rem",
-            overflow: "hidden",
+            overflowY: "auto",
           }}
         >
           {presents.length === 0 ? (
