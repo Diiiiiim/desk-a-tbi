@@ -247,7 +247,7 @@ export default function Home() {
             shadow="rgba(123, 104, 238, 0.5)"
           >
             <div style={{ fontSize: "1.7rem" }}>🗓️</div>
-            <div style={{ fontSize: "0.75rem", marginTop: "0.25rem", textAlign: "center" }}>Mon agenda</div>
+            <div style={{ fontSize: "0.75rem", marginTop: "0.25rem", textAlign: "center" }}>Mon espace</div>
           </WidgetPastille>
         )}
       </div>

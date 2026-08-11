@@ -280,7 +280,7 @@ export default function MonAgenda() {
     >
       <div style={{ position: "absolute", inset: 0, background: "oklch(0.10 0.04 240 / 0.10)", zIndex: 0, pointerEvents: "none" }} />
       <div style={{ position: "relative", zIndex: 1, display: "flex", flexDirection: "column", height: "100%" }}>
-        <KiosqueHeader title="🗓️ Mon agenda" showBack />
+        <KiosqueHeader title="🗓️ Mon espace" showBack />
 
         <main
           className="page-enter"
@@ -358,7 +358,7 @@ export default function MonAgenda() {
                 textAlign: "center",
               }}
             >
-              👆 Choisissez votre prénom pour voir votre agenda
+              👆 Choisissez votre prénom pour voir votre espace
             </div>
           ) : (
             <div
@@ -380,7 +380,7 @@ export default function MonAgenda() {
                   flexShrink: 0,
                 }}
               >
-                Agenda de {selectedResident.prenom}
+                Espace de {selectedResident.prenom}
               </div>
 
               {evenements.length === 0 ? (

@@ -1452,7 +1452,7 @@ function TabParametres() {
         />
         <WidgetToggleRow
           emoji="🗓️"
-          label="Mon agenda (événements personnels)"
+          label="Mon espace (événements personnels)"
           checked={data.widgetAgendaActif}
           onChange={v => updateWidgets({ widgetAgendaActif: v })}
         />
