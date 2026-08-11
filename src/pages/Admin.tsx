@@ -1051,12 +1051,28 @@ function MomentIconPicker({
         htmlFor={inputId}
         style={{
           fontFamily: "'Baloo 2', sans-serif",
-          fontWeight: 600,
-          fontSize: "0.7rem",
+          fontWeight: 700,
+          fontSize: "0.75rem",
           color: "#90CAF9",
           textAlign: "center",
           cursor: "pointer",
-          textDecoration: "underline",
+          background: "oklch(0.22 0.04 240)",
+          border: "2px solid oklch(0.35 0.04 240)",
+          borderRadius: "0.5rem",
+          padding: "0.4rem 0.6rem",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: "0.3rem",
+          transition: "background 120ms ease-out, border-color 120ms ease-out",
+        }}
+        onMouseEnter={e => {
+          e.currentTarget.style.background = "oklch(0.28 0.05 220)";
+          e.currentTarget.style.borderColor = "#90CAF9";
+        }}
+        onMouseLeave={e => {
+          e.currentTarget.style.background = "oklch(0.22 0.04 240)";
+          e.currentTarget.style.borderColor = "oklch(0.35 0.04 240)";
         }}
       >
         📷 {usesPhoto ? "Changer la photo" : "Utiliser une photo"}
@@ -1452,7 +1468,7 @@ function TabParametres() {
         />
         <WidgetToggleRow
           emoji="🗓️"
-          label="Mon espace (événements personnels)"
+          label="Mon agenda (événements personnels)"
           checked={data.widgetAgendaActif}
           onChange={v => updateWidgets({ widgetAgendaActif: v })}
         />
@@ -1536,7 +1552,7 @@ export default function Admin() {
     { id: "educateurs", label: "Éducateurs", icon: "👥" },
     { id: "activites", label: "Activités", icon: "🎨" },
     { id: "evenements", label: "Événements", icon: "📅" },
-    { id: "agenda", label: "Mon espace", icon: "🗓️" },
+    { id: "agenda", label: "Agenda", icon: "🗓️" },
     { id: "menus", label: "Menus", icon: "🍽️" },
     { id: "parametres", label: "Paramètres", icon: "⚙️" },
   ];
