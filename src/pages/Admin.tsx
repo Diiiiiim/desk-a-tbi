@@ -1536,7 +1536,7 @@ export default function Admin() {
     { id: "educateurs", label: "Éducateurs", icon: "👥" },
     { id: "activites", label: "Activités", icon: "🎨" },
     { id: "evenements", label: "Événements", icon: "📅" },
-    { id: "agenda", label: "Agenda", icon: "🗓️" },
+    { id: "agenda", label: "Mon espace", icon: "🗓️" },
     { id: "menus", label: "Menus", icon: "🍽️" },
     { id: "parametres", label: "Paramètres", icon: "⚙️" },
   ];
