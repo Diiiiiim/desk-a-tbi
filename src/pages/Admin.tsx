@@ -472,7 +472,7 @@ function TabEvenements() {
     <div style={{ display: "flex", gap: "1.5rem", height: "100%", overflow: "hidden" }}>
       {/* Formulaire */}
       <div className="kiosque-card" style={{ width: 360, flexShrink: 0, display: "flex", flexDirection: "column", gap: "0.8rem", overflowY: "auto" }}>
-        <h3 style={styles.formTitle}>{editId ? "Modifier événement" : "Ajouter événement"}</h3>
+        <h3 style={styles.formTitle}>{editId ? "Modifier information" : "Ajouter information"}</h3>
         <input style={styles.input} placeholder="Titre de l'événement" value={titre} onChange={e => setTitre(e.target.value)} />
         <input style={styles.input} type="date" value={date} onChange={e => setDate(e.target.value)} />
         <textarea style={{ ...styles.input, minHeight: 80, fontFamily: "'Baloo 2', sans-serif" }} placeholder="Description" value={description} onChange={e => setDescription(e.target.value)} />
@@ -530,7 +530,7 @@ function TabEvenements() {
             <button style={styles.btnDanger} onClick={() => removeEvenement(e.id)}>🗑️</button>
           </div>
         ))}
-        {data.evenements.length === 0 && <EmptyState text="Aucun événement programmé" />}
+        {data.evenements.length === 0 && <EmptyState text="Aucune information programmée" />}
       </div>
     </div>
   );
@@ -1551,8 +1551,8 @@ export default function Admin() {
     { id: "residents", label: "Résidents", icon: "👤" },
     { id: "educateurs", label: "Éducateurs", icon: "👥" },
     { id: "activites", label: "Activités", icon: "🎨" },
-    { id: "evenements", label: "Événements", icon: "📅" },
-    { id: "agenda", label: "Mon espace", icon: "🗓️" },
+    { id: "evenements", label: "Informations", icon: "📅" },
+    { id: "agenda", label: "Agenda", icon: "🗓️" },
     { id: "menus", label: "Menus", icon: "🍽️" },
     { id: "parametres", label: "Paramètres", icon: "⚙️" },
   ];
