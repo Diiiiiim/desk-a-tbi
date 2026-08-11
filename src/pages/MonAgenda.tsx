@@ -64,7 +64,7 @@ function EventCard({ ev, onClick }: { ev: AgendaEvenement; onClick: () => void }
       )}
       <div style={{ flex: 1 }}>
         <div style={{ fontFamily: "'Baloo 2', sans-serif", fontWeight: 800, fontSize: "1.3rem", color: "#FFD600" }}>
-          {ev.titre}
+          {ev.titre} {ev.lienUrl && <span style={{ fontSize: "1.1rem" }}>🔗</span>}
         </div>
         <div style={{ fontFamily: "'Baloo 2', sans-serif", fontWeight: 600, fontSize: "1rem", color: "#fff", marginTop: "0.2rem" }}>
           📅 {formatDateFR(ev.dateDebut)}
@@ -217,6 +217,33 @@ function EventZoomModal({ ev, onClose }: { ev: AgendaEvenement; onClose: () => v
           >
             {ev.description}
           </p>
+        )}
+
+        {ev.lienUrl && (
+          <a
+            href={ev.lienUrl}
+            target="_blank"
+            rel="noreferrer"
+            onClick={e => e.stopPropagation()}
+            style={{
+              fontFamily: "'Baloo 2', sans-serif",
+              fontWeight: 800,
+              fontSize: "1.3rem",
+              color: "#0D1B2A",
+              background: "#4FC3F7",
+              borderRadius: "1rem",
+              padding: "1rem 1.6rem",
+              textAlign: "center",
+              textDecoration: "none",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: "0.6rem",
+              boxShadow: "0 4px 14px rgba(79, 195, 247, 0.4)",
+            }}
+          >
+            {ev.lienLabel || "▶️ Voir / Écouter"}
+          </a>
         )}
 
         <style>{`

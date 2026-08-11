@@ -546,11 +546,14 @@ function TabAgenda() {
   const [dateDebut, setDateDebut] = useState(() => new Date().toISOString().split("T")[0]);
   const [dateFin, setDateFin] = useState("");
   const [description, setDescription] = useState("");
+  const [lienUrl, setLienUrl] = useState("");
+  const [lienLabel, setLienLabel] = useState("");
   const [editId, setEditId] = useState<string | null>(null);
 
   function resetForm() {
     setResidentId(""); setTitre(""); setEmoji("📌"); setPhotoUrl("");
     setDateDebut(new Date().toISOString().split("T")[0]); setDateFin(""); setDescription("");
+    setLienUrl(""); setLienLabel("");
     setEditId(null);
   }
 
@@ -559,6 +562,7 @@ function TabAgenda() {
     const ev = {
       residentId, titre: titre.trim(), emoji, photoUrl,
       dateDebut, dateFin: dateFin || null, description: description.trim(),
+      lienUrl: lienUrl.trim(), lienLabel: lienLabel.trim() || (lienUrl.trim() ? "▶️ Voir / Écouter" : ""),
     };
     if (editId) {
       updateAgendaEvenement(editId, ev);
@@ -573,6 +577,7 @@ function TabAgenda() {
     if (!ev) return;
     setEditId(id); setResidentId(ev.residentId); setTitre(ev.titre); setEmoji(ev.emoji); setPhotoUrl(ev.photoUrl);
     setDateDebut(ev.dateDebut); setDateFin(ev.dateFin || ""); setDescription(ev.description);
+    setLienUrl(ev.lienUrl); setLienLabel(ev.lienLabel);
   }
 
   const agendaTrie = [...data.agenda].sort((a, b) => a.dateDebut.localeCompare(b.dateDebut));
@@ -628,6 +633,24 @@ function TabAgenda() {
           onChange={e => setDescription(e.target.value)}
         />
 
+        <div>
+          <div style={styles.subLabel}>Lien externe (optionnel) — vidéo YouTube, musique...</div>
+          <input
+            style={styles.input}
+            placeholder="https://youtube.com/..."
+            value={lienUrl}
+            onChange={e => setLienUrl(e.target.value)}
+          />
+          {lienUrl.trim() && (
+            <input
+              style={{ ...styles.input, marginTop: "0.5rem" }}
+              placeholder="Texte du bouton (ex : Voir la vidéo)"
+              value={lienLabel}
+              onChange={e => setLienLabel(e.target.value)}
+            />
+          )}
+        </div>
+
         <button style={styles.btnPrimary} onClick={handleSave}>{editId ? "✅ Enregistrer" : "➕ Ajouter"}</button>
         {editId && <button style={styles.btnDanger} onClick={resetForm}>Annuler</button>}
       </div>
@@ -646,6 +669,7 @@ function TabAgenda() {
               <div style={{ flex: 1 }}>
                 <div style={styles.listName}>
                   {ev.titre} — <span style={{ color: "#FFD600" }}>{resident?.prenom || "?"}</span>
+                  {ev.lienUrl && <span style={{ marginLeft: "0.5rem", fontSize: "0.8rem", color: "#4FC3F7" }}>🔗 lien</span>}
                 </div>
                 <div style={{ fontSize: "0.9rem", color: "oklch(0.65 0.02 240)" }}>
                   📅 {ev.dateDebut}{ev.dateFin && ev.dateFin !== ev.dateDebut ? ` → ${ev.dateFin}` : ""}

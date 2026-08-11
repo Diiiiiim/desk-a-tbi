@@ -75,6 +75,8 @@ export interface AgendaEvenement {
   emoji: string;
   photoUrl: string;
   description: string;
+  lienUrl: string; // lien externe optionnel (YouTube, musique...)
+  lienLabel: string; // libellé du bouton, ex "Voir la vidéo"
 }
 
 export interface AppData {
@@ -130,6 +132,7 @@ function dbToAgendaEvenement(a: any): AgendaEvenement {
     id: a.id, residentId: a.resident_id, titre: a.titre,
     dateDebut: a.date_debut, dateFin: a.date_fin || null,
     emoji: a.emoji || '📌', photoUrl: a.photo_url || '', description: a.description || '',
+    lienUrl: a.lien_url || '', lienLabel: a.lien_label || '',
   };
 }
 
@@ -452,6 +455,7 @@ export function DataProvider({ foyerId, children }: { foyerId: string; children:
       foyer_id: foyerId, resident_id: ev.residentId, titre: ev.titre,
       date_debut: ev.dateDebut, date_fin: ev.dateFin, emoji: ev.emoji,
       photo_url: ev.photoUrl || '', description: ev.description,
+      lien_url: ev.lienUrl || '', lien_label: ev.lienLabel || '',
     });
   }, [foyerId]);
 
@@ -464,6 +468,8 @@ export function DataProvider({ foyerId, children }: { foyerId: string; children:
     if (updates.emoji !== undefined) dbUpdates.emoji = updates.emoji;
     if (updates.photoUrl !== undefined) dbUpdates.photo_url = updates.photoUrl;
     if (updates.description !== undefined) dbUpdates.description = updates.description;
+    if (updates.lienUrl !== undefined) dbUpdates.lien_url = updates.lienUrl;
+    if (updates.lienLabel !== undefined) dbUpdates.lien_label = updates.lienLabel;
     await supabase.from('agenda_personnel').update(dbUpdates).eq('id', id);
   }, [foyerId]);
 
