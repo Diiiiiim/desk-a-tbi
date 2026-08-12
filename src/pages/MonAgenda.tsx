@@ -352,7 +352,6 @@ export default function MonAgenda() {
               display: "flex",
               gap: selectedResidentId ? "1rem" : "1.8rem",
               overflowX: "auto",
-              justifyContent: "center",
               paddingBottom: "0.2rem",
               flexShrink: 0,
               transition: "gap 250ms ease",
@@ -422,16 +421,41 @@ export default function MonAgenda() {
             </div>
           ) : (
             <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: "0.8rem", overflow: "hidden" }}>
-              <div
-                style={{
-                  fontFamily: "'Baloo 2', sans-serif",
-                  fontWeight: 800,
-                  fontSize: "1.5rem",
-                  color: "#fff",
-                  flexShrink: 0,
-                }}
-              >
-                Espace de {selectedResident.prenom}
+              <div style={{ display: "flex", alignItems: "center", gap: "1rem", flexShrink: 0 }}>
+                <button
+                  onClick={() => setSelectedResidentId(null)}
+                  style={{
+                    background: "oklch(0.22 0.04 240)",
+                    border: "2px solid oklch(0.35 0.04 240)",
+                    borderRadius: "0.7rem",
+                    color: "#fff",
+                    fontFamily: "'Baloo 2', sans-serif",
+                    fontWeight: 700,
+                    fontSize: "0.95rem",
+                    padding: "0.5rem 1rem",
+                    cursor: "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "0.4rem",
+                    flexShrink: 0,
+                    transition: "transform 120ms ease-out",
+                  }}
+                  onPointerDown={e => { (e.currentTarget as HTMLButtonElement).style.transform = "scale(0.94)"; }}
+                  onPointerUp={e => { (e.currentTarget as HTMLButtonElement).style.transform = "scale(1)"; }}
+                  title="Choisir un autre résident"
+                >
+                  ← Changer de résident
+                </button>
+                <div
+                  style={{
+                    fontFamily: "'Baloo 2', sans-serif",
+                    fontWeight: 800,
+                    fontSize: "1.5rem",
+                    color: "#fff",
+                  }}
+                >
+                  Espace de {selectedResident.prenom}
+                </div>
               </div>
 
               {/* Deux colonnes : Événements à gauche, Loisirs à droite */}
