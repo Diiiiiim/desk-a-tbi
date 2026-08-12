@@ -66,12 +66,15 @@ export interface TimelineMoment {
   ordre: number;
 }
 
+export type AgendaCategorie = 'evenement' | 'loisir';
+
 export interface AgendaEvenement {
   id: string;
   residentId: string;
+  categorie: AgendaCategorie;
   titre: string;
-  dateDebut: string; // YYYY-MM-DD
-  dateFin: string | null; // null si événement d'un seul jour
+  dateDebut: string | null; // YYYY-MM-DD, non utilisé si categorie === 'loisir'
+  dateFin: string | null; // null si événement d'un seul jour ou si loisir
   emoji: string;
   photoUrl: string;
   description: string;
@@ -129,8 +132,8 @@ function dbToTimelineMoment(t: any): TimelineMoment {
 
 function dbToAgendaEvenement(a: any): AgendaEvenement {
   return {
-    id: a.id, residentId: a.resident_id, titre: a.titre,
-    dateDebut: a.date_debut, dateFin: a.date_fin || null,
+    id: a.id, residentId: a.resident_id, categorie: a.categorie || 'evenement', titre: a.titre,
+    dateDebut: a.date_debut || null, dateFin: a.date_fin || null,
     emoji: a.emoji || '📌', photoUrl: a.photo_url || '', description: a.description || '',
     lienUrl: a.lien_url || '', lienLabel: a.lien_label || '',
   };
@@ -452,7 +455,7 @@ export function DataProvider({ foyerId, children }: { foyerId: string; children:
   // ── Agenda personnel (par résident) ─────────────────────────────────────────
   const addAgendaEvenement = useCallback(async (ev: Omit<AgendaEvenement, 'id'>) => {
     await supabase.from('agenda_personnel').insert({
-      foyer_id: foyerId, resident_id: ev.residentId, titre: ev.titre,
+      foyer_id: foyerId, resident_id: ev.residentId, categorie: ev.categorie, titre: ev.titre,
       date_debut: ev.dateDebut, date_fin: ev.dateFin, emoji: ev.emoji,
       photo_url: ev.photoUrl || '', description: ev.description,
       lien_url: ev.lienUrl || '', lien_label: ev.lienLabel || '',
@@ -462,6 +465,7 @@ export function DataProvider({ foyerId, children }: { foyerId: string; children:
   const updateAgendaEvenement = useCallback(async (id: string, updates: Partial<AgendaEvenement>) => {
     const dbUpdates: any = {};
     if (updates.residentId !== undefined) dbUpdates.resident_id = updates.residentId;
+    if (updates.categorie !== undefined) dbUpdates.categorie = updates.categorie;
     if (updates.titre !== undefined) dbUpdates.titre = updates.titre;
     if (updates.dateDebut !== undefined) dbUpdates.date_debut = updates.dateDebut;
     if (updates.dateFin !== undefined) dbUpdates.date_fin = updates.dateFin;

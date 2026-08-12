@@ -540,6 +540,7 @@ function TabEvenements() {
 function TabAgenda() {
   const { data, addAgendaEvenement, updateAgendaEvenement, removeAgendaEvenement } = useData();
   const [residentId, setResidentId] = useState("");
+  const [categorie, setCategorie] = useState<"evenement" | "loisir">("evenement");
   const [titre, setTitre] = useState("");
   const [emoji, setEmoji] = useState("📌");
   const [photoUrl, setPhotoUrl] = useState("");
@@ -551,7 +552,7 @@ function TabAgenda() {
   const [editId, setEditId] = useState<string | null>(null);
 
   function resetForm() {
-    setResidentId(""); setTitre(""); setEmoji("📌"); setPhotoUrl("");
+    setResidentId(""); setCategorie("evenement"); setTitre(""); setEmoji("📌"); setPhotoUrl("");
     setDateDebut(new Date().toISOString().split("T")[0]); setDateFin(""); setDescription("");
     setLienUrl(""); setLienLabel("");
     setEditId(null);
@@ -560,8 +561,10 @@ function TabAgenda() {
   function handleSave() {
     if (!residentId || !titre.trim()) return;
     const ev = {
-      residentId, titre: titre.trim(), emoji, photoUrl,
-      dateDebut, dateFin: dateFin || null, description: description.trim(),
+      residentId, categorie, titre: titre.trim(), emoji, photoUrl,
+      dateDebut: categorie === "evenement" ? dateDebut : null,
+      dateFin: categorie === "evenement" ? (dateFin || null) : null,
+      description: description.trim(),
       lienUrl: lienUrl.trim(), lienLabel: lienLabel.trim() || (lienUrl.trim() ? "▶️ Voir / Écouter" : ""),
     };
     if (editId) {
@@ -575,18 +578,23 @@ function TabAgenda() {
   function startEdit(id: string) {
     const ev = data.agenda.find(a => a.id === id);
     if (!ev) return;
-    setEditId(id); setResidentId(ev.residentId); setTitre(ev.titre); setEmoji(ev.emoji); setPhotoUrl(ev.photoUrl);
-    setDateDebut(ev.dateDebut); setDateFin(ev.dateFin || ""); setDescription(ev.description);
+    setEditId(id); setResidentId(ev.residentId); setCategorie(ev.categorie); setTitre(ev.titre); setEmoji(ev.emoji); setPhotoUrl(ev.photoUrl);
+    setDateDebut(ev.dateDebut || new Date().toISOString().split("T")[0]); setDateFin(ev.dateFin || ""); setDescription(ev.description);
     setLienUrl(ev.lienUrl); setLienLabel(ev.lienLabel);
   }
 
-  const agendaTrie = [...data.agenda].sort((a, b) => a.dateDebut.localeCompare(b.dateDebut));
+  // Tri : par catégorie (événements d'abord), puis par date pour les événements, par titre pour les loisirs
+  const agendaTrie = [...data.agenda].sort((a, b) => {
+    if (a.categorie !== b.categorie) return a.categorie === "evenement" ? -1 : 1;
+    if (a.categorie === "evenement") return (a.dateDebut || "").localeCompare(b.dateDebut || "");
+    return a.titre.localeCompare(b.titre);
+  });
 
   return (
     <div style={{ display: "flex", gap: "1.5rem", height: "100%", overflow: "hidden" }}>
       {/* Formulaire */}
       <div className="kiosque-card" style={{ width: 380, flexShrink: 0, display: "flex", flexDirection: "column", gap: "0.8rem", overflowY: "auto" }}>
-        <h3 style={styles.formTitle}>{editId ? "Modifier l'événement" : "Ajouter un événement personnel"}</h3>
+        <h3 style={styles.formTitle}>{editId ? "Modifier l'élément" : "Ajouter un élément personnel"}</h3>
 
         <div>
           <div style={styles.subLabel}>Résident concerné</div>
@@ -603,6 +611,18 @@ function TabAgenda() {
           </div>
         </div>
 
+        <div>
+          <div style={styles.subLabel}>Catégorie</div>
+          <select
+            style={styles.input}
+            value={categorie}
+            onChange={e => setCategorie(e.target.value as "evenement" | "loisir")}
+          >
+            <option value="evenement">📅 Événement (avec date)</option>
+            <option value="loisir">🎵 Loisir / Divertissement</option>
+          </select>
+        </div>
+
         <input style={styles.input} placeholder="Titre (ex : Retour en famille)" value={titre} onChange={e => setTitre(e.target.value)} />
 
         <div>
@@ -615,16 +635,18 @@ function TabAgenda() {
           />
         </div>
 
-        <div style={{ display: "flex", gap: "0.6rem" }}>
-          <div style={{ flex: 1 }}>
-            <div style={styles.subLabel}>Date de début</div>
-            <input type="date" style={styles.input} value={dateDebut} onChange={e => setDateDebut(e.target.value)} />
+        {categorie === "evenement" && (
+          <div style={{ display: "flex", gap: "0.6rem" }}>
+            <div style={{ flex: 1 }}>
+              <div style={styles.subLabel}>Date de début</div>
+              <input type="date" style={styles.input} value={dateDebut} onChange={e => setDateDebut(e.target.value)} />
+            </div>
+            <div style={{ flex: 1 }}>
+              <div style={styles.subLabel}>Date de fin (optionnel)</div>
+              <input type="date" style={styles.input} value={dateFin} onChange={e => setDateFin(e.target.value)} min={dateDebut} />
+            </div>
           </div>
-          <div style={{ flex: 1 }}>
-            <div style={styles.subLabel}>Date de fin (optionnel)</div>
-            <input type="date" style={styles.input} value={dateFin} onChange={e => setDateFin(e.target.value)} min={dateDebut} />
-          </div>
-        </div>
+        )}
 
         <textarea
           style={{ ...styles.input, minHeight: 70, resize: "vertical" }}
@@ -669,11 +691,26 @@ function TabAgenda() {
               <div style={{ flex: 1 }}>
                 <div style={styles.listName}>
                   {ev.titre} — <span style={{ color: "#FFD600" }}>{resident?.prenom || "?"}</span>
+                  {" "}
+                  <span
+                    style={{
+                      fontSize: "0.7rem",
+                      fontWeight: 700,
+                      color: ev.categorie === "evenement" ? "#4FC3F7" : "#CE93D8",
+                      background: ev.categorie === "evenement" ? "oklch(0.25 0.05 220)" : "oklch(0.25 0.05 300)",
+                      padding: "0.15rem 0.5rem",
+                      borderRadius: "0.4rem",
+                    }}
+                  >
+                    {ev.categorie === "evenement" ? "📅 Événement" : "🎵 Loisir"}
+                  </span>
                   {ev.lienUrl && <span style={{ marginLeft: "0.5rem", fontSize: "0.8rem", color: "#4FC3F7" }}>🔗 lien</span>}
                 </div>
                 <div style={{ fontSize: "0.9rem", color: "oklch(0.65 0.02 240)" }}>
-                  📅 {ev.dateDebut}{ev.dateFin && ev.dateFin !== ev.dateDebut ? ` → ${ev.dateFin}` : ""}
-                  {ev.description && ` · ${ev.description}`}
+                  {ev.categorie === "evenement" && ev.dateDebut && (
+                    <>📅 {ev.dateDebut}{ev.dateFin && ev.dateFin !== ev.dateDebut ? ` → ${ev.dateFin}` : ""}{ev.description && " · "}</>
+                  )}
+                  {ev.description}
                 </div>
               </div>
               <button style={styles.btnEdit} onClick={() => startEdit(ev.id)}>✏️ Modifier</button>
@@ -681,7 +718,7 @@ function TabAgenda() {
             </div>
           );
         })}
-        {agendaTrie.length === 0 && <EmptyState text="Aucun événement personnel programmé" />}
+        {agendaTrie.length === 0 && <EmptyState text="Aucun élément personnel programmé" />}
       </div>
     </div>
   );

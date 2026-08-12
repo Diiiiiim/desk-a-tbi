@@ -1,7 +1,9 @@
 /**
- * Page Mon Agenda — Agenda personnel par résident
- * Accessible depuis l'accueil : on choisit un résident, on voit ses événements
- * personnels (retour en famille, vacances, rendez-vous...) classés par proximité.
+ * Page Mon Espace — Espace personnel par résident
+ * Accessible depuis l'accueil : on choisit un résident (grandes photos),
+ * puis l'écran se divise en deux colonnes :
+ *  - à gauche : Événements (dates, retour en famille, vacances, rendez-vous...)
+ *  - à droite : Loisirs / Divertissement (musiques, vidéos préférées, sans date)
  */
 import { useState } from "react";
 import CommunicationBar from "@/components/CommunicationBar";
@@ -23,17 +25,23 @@ function joursRestants(dateStr: string): number {
   return Math.round((target.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
 }
 
-function EventCard({ ev, onClick }: { ev: AgendaEvenement; onClick: () => void }) {
+function getBadgeInfo(ev: AgendaEvenement): { badge: string; passe: boolean } {
+  if (!ev.dateDebut) return { badge: "", passe: false };
   const jours = joursRestants(ev.dateDebut);
   const enCours = ev.dateFin && jours <= 0 && joursRestants(ev.dateFin) >= 0;
   const passe = enCours ? false : jours < 0;
-
   let badge = "";
   if (passe) badge = "Terminé";
   else if (enCours) badge = "En cours";
   else if (jours === 0) badge = "Aujourd'hui !";
   else if (jours === 1) badge = "Demain !";
   else badge = `Dans ${jours} jours`;
+  return { badge, passe };
+}
+
+// ─── Carte Événement (avec date et badge de proximité) ───────────────────────
+function EventCard({ ev, onClick }: { ev: AgendaEvenement; onClick: () => void }) {
+  const { badge, passe } = getBadgeInfo(ev);
 
   return (
     <div
@@ -42,10 +50,10 @@ function EventCard({ ev, onClick }: { ev: AgendaEvenement; onClick: () => void }
       style={{
         display: "flex",
         alignItems: "center",
-        gap: "1.2rem",
-        borderLeft: `6px solid ${passe ? "oklch(0.40 0.02 240)" : "#FFD600"}`,
+        gap: "1rem",
+        borderLeft: `6px solid ${passe ? "oklch(0.40 0.02 240)" : "#4FC3F7"}`,
         opacity: passe ? 0.6 : 1,
-        padding: "1.2rem",
+        padding: "1rem",
         cursor: "pointer",
         transition: "transform 0.2s ease",
       }}
@@ -57,55 +65,89 @@ function EventCard({ ev, onClick }: { ev: AgendaEvenement; onClick: () => void }
         <img
           src={ev.photoUrl}
           alt={ev.titre}
-          style={{ width: 70, height: 70, objectFit: "cover", borderRadius: "0.75rem", flexShrink: 0 }}
+          style={{ width: 56, height: 56, objectFit: "cover", borderRadius: "0.65rem", flexShrink: 0 }}
         />
       ) : (
-        <div style={{ fontSize: "2.8rem", flexShrink: 0 }}>{ev.emoji}</div>
+        <div style={{ fontSize: "2.2rem", flexShrink: 0 }}>{ev.emoji}</div>
       )}
-      <div style={{ flex: 1 }}>
-        <div style={{ fontFamily: "'Baloo 2', sans-serif", fontWeight: 800, fontSize: "1.3rem", color: "#FFD600" }}>
-          {ev.titre} {ev.lienUrl && <span style={{ fontSize: "1.1rem" }}>🔗</span>}
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontFamily: "'Baloo 2', sans-serif", fontWeight: 800, fontSize: "1.1rem", color: "#4FC3F7" }}>
+          {ev.titre} {ev.lienUrl && <span style={{ fontSize: "1rem" }}>🔗</span>}
         </div>
-        <div style={{ fontFamily: "'Baloo 2', sans-serif", fontWeight: 600, fontSize: "1rem", color: "#fff", marginTop: "0.2rem" }}>
-          📅 {formatDateFR(ev.dateDebut)}
-          {ev.dateFin && ev.dateFin !== ev.dateDebut && <> → {formatDateFR(ev.dateFin)}</>}
-        </div>
-        {ev.description && (
-          <div style={{ fontFamily: "'Baloo 2', sans-serif", fontWeight: 500, fontSize: "0.95rem", color: "oklch(0.70 0.02 240)", marginTop: "0.4rem" }}>
-            {ev.description}
+        {ev.dateDebut && (
+          <div style={{ fontFamily: "'Baloo 2', sans-serif", fontWeight: 600, fontSize: "0.9rem", color: "#fff", marginTop: "0.15rem" }}>
+            📅 {formatDateFR(ev.dateDebut)}
+            {ev.dateFin && ev.dateFin !== ev.dateDebut && <> → {formatDateFR(ev.dateFin)}</>}
           </div>
         )}
       </div>
-      <div
-        style={{
-          fontFamily: "'Baloo 2', sans-serif",
-          fontWeight: 800,
-          fontSize: "0.95rem",
-          color: passe ? "oklch(0.55 0.02 240)" : "#0D1B2A",
-          background: passe ? "oklch(0.25 0.02 240)" : "#FFD600",
-          padding: "0.5rem 1rem",
-          borderRadius: "1rem",
-          flexShrink: 0,
-          textAlign: "center",
-        }}
-      >
-        {badge}
+      {badge && (
+        <div
+          style={{
+            fontFamily: "'Baloo 2', sans-serif",
+            fontWeight: 800,
+            fontSize: "0.8rem",
+            color: passe ? "oklch(0.55 0.02 240)" : "#0D1B2A",
+            background: passe ? "oklch(0.25 0.02 240)" : "#4FC3F7",
+            padding: "0.4rem 0.7rem",
+            borderRadius: "0.8rem",
+            flexShrink: 0,
+            textAlign: "center",
+          }}
+        >
+          {badge}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Carte Loisir (pas de date, plus simple) ──────────────────────────────────
+function LoisirCard({ ev, onClick }: { ev: AgendaEvenement; onClick: () => void }) {
+  return (
+    <div
+      className="kiosque-card"
+      onClick={onClick}
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: "1rem",
+        borderLeft: "6px solid #CE93D8",
+        padding: "1rem",
+        cursor: "pointer",
+        transition: "transform 0.2s ease",
+      }}
+      onMouseEnter={e => { e.currentTarget.style.transform = "scale(1.015)"; }}
+      onMouseLeave={e => { e.currentTarget.style.transform = "scale(1)"; }}
+      title="Cliquez pour agrandir"
+    >
+      {ev.photoUrl ? (
+        <img
+          src={ev.photoUrl}
+          alt={ev.titre}
+          style={{ width: 56, height: 56, objectFit: "cover", borderRadius: "0.65rem", flexShrink: 0 }}
+        />
+      ) : (
+        <div style={{ fontSize: "2.2rem", flexShrink: 0 }}>{ev.emoji}</div>
+      )}
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontFamily: "'Baloo 2', sans-serif", fontWeight: 800, fontSize: "1.1rem", color: "#CE93D8" }}>
+          {ev.titre} {ev.lienUrl && <span style={{ fontSize: "1rem" }}>🔗</span>}
+        </div>
+        {ev.description && (
+          <div style={{ fontFamily: "'Baloo 2', sans-serif", fontWeight: 500, fontSize: "0.88rem", color: "oklch(0.70 0.02 240)", marginTop: "0.15rem" }}>
+            {ev.description}
+          </div>
+        )}
       </div>
     </div>
   );
 }
 
+// ─── Modal de zoom, commun aux deux catégories ────────────────────────────────
 function EventZoomModal({ ev, onClose }: { ev: AgendaEvenement; onClose: () => void }) {
-  const jours = joursRestants(ev.dateDebut);
-  const enCours = ev.dateFin && jours <= 0 && joursRestants(ev.dateFin) >= 0;
-  const passe = enCours ? false : jours < 0;
-
-  let badge = "";
-  if (passe) badge = "Terminé";
-  else if (enCours) badge = "En cours";
-  else if (jours === 0) badge = "Aujourd'hui !";
-  else if (jours === 1) badge = "Demain !";
-  else badge = `Dans ${jours} jours`;
+  const { badge } = getBadgeInfo(ev);
+  const accent = ev.categorie === "evenement" ? "#4FC3F7" : "#CE93D8";
 
   return (
     <div
@@ -131,7 +173,7 @@ function EventZoomModal({ ev, onClose }: { ev: AgendaEvenement; onClose: () => v
           display: "flex",
           flexDirection: "column",
           gap: "1.5rem",
-          borderLeft: "8px solid #FFD600",
+          borderLeft: `8px solid ${accent}`,
           position: "relative",
           overflowY: "auto",
           animation: "slideUp 0.3s ease-out",
@@ -178,7 +220,7 @@ function EventZoomModal({ ev, onClose }: { ev: AgendaEvenement; onClose: () => v
             fontFamily: "'Baloo 2', sans-serif",
             fontWeight: 800,
             fontSize: "clamp(1.8rem, 4vw, 2.6rem)",
-            color: "#FFD600",
+            color: accent,
             margin: 0,
             paddingRight: "3rem",
           }}
@@ -186,23 +228,25 @@ function EventZoomModal({ ev, onClose }: { ev: AgendaEvenement; onClose: () => v
           {ev.titre}
         </h2>
 
-        <div
-          style={{
-            fontFamily: "'Baloo 2', sans-serif",
-            fontWeight: 700,
-            fontSize: "1.3rem",
-            color: "#0D1B2A",
-            background: "#FFD600",
-            borderRadius: "0.75rem",
-            padding: "0.7rem 1.3rem",
-            display: "inline-block",
-            width: "fit-content",
-          }}
-        >
-          📅 {formatDateFR(ev.dateDebut)}
-          {ev.dateFin && ev.dateFin !== ev.dateDebut && <> → {formatDateFR(ev.dateFin)}</>}
-          {" · "}{badge}
-        </div>
+        {ev.categorie === "evenement" && ev.dateDebut && (
+          <div
+            style={{
+              fontFamily: "'Baloo 2', sans-serif",
+              fontWeight: 700,
+              fontSize: "1.3rem",
+              color: "#0D1B2A",
+              background: accent,
+              borderRadius: "0.75rem",
+              padding: "0.7rem 1.3rem",
+              display: "inline-block",
+              width: "fit-content",
+            }}
+          >
+            📅 {formatDateFR(ev.dateDebut)}
+            {ev.dateFin && ev.dateFin !== ev.dateDebut && <> → {formatDateFR(ev.dateFin)}</>}
+            {badge && <>{" · "}{badge}</>}
+          </div>
+        )}
 
         {ev.description && (
           <p
@@ -230,7 +274,7 @@ function EventZoomModal({ ev, onClose }: { ev: AgendaEvenement; onClose: () => v
               fontWeight: 800,
               fontSize: "1.3rem",
               color: "#0D1B2A",
-              background: "#4FC3F7",
+              background: accent,
               borderRadius: "1rem",
               padding: "1rem 1.6rem",
               textAlign: "center",
@@ -239,7 +283,7 @@ function EventZoomModal({ ev, onClose }: { ev: AgendaEvenement; onClose: () => v
               alignItems: "center",
               justifyContent: "center",
               gap: "0.6rem",
-              boxShadow: "0 4px 14px rgba(79, 195, 247, 0.4)",
+              boxShadow: `0 4px 14px ${accent}66`,
             }}
           >
             {ev.lienLabel || "▶️ Voir / Écouter"}
@@ -261,9 +305,13 @@ export default function MonAgenda() {
   const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
 
   const selectedResident = data.residents.find(r => r.id === selectedResidentId);
-  const evenements = data.agenda
-    .filter(a => a.residentId === selectedResidentId)
-    .sort((a, b) => a.dateDebut.localeCompare(b.dateDebut));
+  const itemsResident = data.agenda.filter(a => a.residentId === selectedResidentId);
+  const evenements = itemsResident
+    .filter(a => a.categorie === "evenement")
+    .sort((a, b) => (a.dateDebut || "").localeCompare(b.dateDebut || ""));
+  const loisirs = itemsResident
+    .filter(a => a.categorie === "loisir")
+    .sort((a, b) => a.titre.localeCompare(b.titre));
   const selectedEvent = data.agenda.find(a => a.id === selectedEventId);
 
   return (
@@ -293,11 +341,11 @@ export default function MonAgenda() {
             overflow: "hidden",
           }}
         >
-          {/* Sélecteur de résident */}
+          {/* Sélecteur de résident — grandes photos (x3) */}
           <div
             style={{
               display: "flex",
-              gap: "1rem",
+              gap: "1.8rem",
               overflowX: "auto",
               paddingBottom: "0.5rem",
               flexShrink: 0,
@@ -311,7 +359,7 @@ export default function MonAgenda() {
                   display: "flex",
                   flexDirection: "column",
                   alignItems: "center",
-                  gap: "0.4rem",
+                  gap: "0.6rem",
                   cursor: "pointer",
                   flexShrink: 0,
                   opacity: selectedResidentId && selectedResidentId !== r.id ? 0.5 : 1,
@@ -321,14 +369,14 @@ export default function MonAgenda() {
                 <PhotoCircle
                   photo={r.photo}
                   prenom={r.prenom}
-                  size={84}
+                  size={252}
                   borderColor={selectedResidentId === r.id ? "#FFD600" : "oklch(0.40 0.04 240)"}
                 />
                 <span
                   style={{
                     fontFamily: "'Baloo 2', sans-serif",
                     fontWeight: 700,
-                    fontSize: "0.9rem",
+                    fontSize: "1.4rem",
                     color: selectedResidentId === r.id ? "#FFD600" : "#fff",
                   }}
                 >
@@ -361,21 +409,12 @@ export default function MonAgenda() {
               👆 Choisissez votre prénom pour voir votre espace
             </div>
           ) : (
-            <div
-              style={{
-                flex: 1,
-                display: "flex",
-                flexDirection: "column",
-                gap: "1rem",
-                overflowY: "auto",
-                paddingRight: "0.5rem",
-              }}
-            >
+            <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: "0.8rem", overflow: "hidden" }}>
               <div
                 style={{
                   fontFamily: "'Baloo 2', sans-serif",
                   fontWeight: 800,
-                  fontSize: "1.6rem",
+                  fontSize: "1.5rem",
                   color: "#fff",
                   flexShrink: 0,
                 }}
@@ -383,26 +422,93 @@ export default function MonAgenda() {
                 Espace de {selectedResident.prenom}
               </div>
 
-              {evenements.length === 0 ? (
-                <div
-                  style={{
-                    flex: 1,
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    fontFamily: "'Baloo 2', sans-serif",
-                    fontWeight: 600,
-                    fontSize: "1.2rem",
-                    color: "oklch(0.55 0.02 240)",
-                  }}
-                >
-                  Aucun événement programmé pour le moment.
+              {/* Deux colonnes : Événements à gauche, Loisirs à droite */}
+              <div style={{ flex: 1, display: "flex", gap: "1.2rem", overflow: "hidden" }}>
+                {/* Colonne Événements */}
+                <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: "0.6rem", overflow: "hidden" }}>
+                  <div
+                    style={{
+                      fontFamily: "'Baloo 2', sans-serif",
+                      fontWeight: 800,
+                      fontSize: "1.15rem",
+                      color: "#4FC3F7",
+                      flexShrink: 0,
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "0.4rem",
+                    }}
+                  >
+                    📅 Événements
+                  </div>
+                  <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: "0.7rem", overflowY: "auto", paddingRight: "0.3rem" }}>
+                    {evenements.length === 0 ? (
+                      <div
+                        style={{
+                          flex: 1,
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          fontFamily: "'Baloo 2', sans-serif",
+                          fontWeight: 600,
+                          fontSize: "1rem",
+                          color: "oklch(0.55 0.02 240)",
+                          textAlign: "center",
+                        }}
+                      >
+                        Aucun événement programmé.
+                      </div>
+                    ) : (
+                      evenements.map(ev => (
+                        <EventCard key={ev.id} ev={ev} onClick={() => setSelectedEventId(ev.id)} />
+                      ))
+                    )}
+                  </div>
                 </div>
-              ) : (
-                evenements.map(ev => (
-                  <EventCard key={ev.id} ev={ev} onClick={() => setSelectedEventId(ev.id)} />
-                ))
-              )}
+
+                {/* Séparateur vertical */}
+                <div style={{ width: 2, background: "oklch(0.28 0.04 240)", flexShrink: 0 }} />
+
+                {/* Colonne Loisirs / Divertissement */}
+                <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: "0.6rem", overflow: "hidden" }}>
+                  <div
+                    style={{
+                      fontFamily: "'Baloo 2', sans-serif",
+                      fontWeight: 800,
+                      fontSize: "1.15rem",
+                      color: "#CE93D8",
+                      flexShrink: 0,
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "0.4rem",
+                    }}
+                  >
+                    🎵 Loisirs & Divertissement
+                  </div>
+                  <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: "0.7rem", overflowY: "auto", paddingRight: "0.3rem" }}>
+                    {loisirs.length === 0 ? (
+                      <div
+                        style={{
+                          flex: 1,
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          fontFamily: "'Baloo 2', sans-serif",
+                          fontWeight: 600,
+                          fontSize: "1rem",
+                          color: "oklch(0.55 0.02 240)",
+                          textAlign: "center",
+                        }}
+                      >
+                        Aucun loisir enregistré.
+                      </div>
+                    ) : (
+                      loisirs.map(ev => (
+                        <LoisirCard key={ev.id} ev={ev} onClick={() => setSelectedEventId(ev.id)} />
+                      ))
+                    )}
+                  </div>
+                </div>
+              </div>
             </div>
           )}
         </main>
