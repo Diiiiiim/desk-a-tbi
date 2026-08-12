@@ -326,6 +326,10 @@ export default function MonAgenda() {
         position: "relative",
       }}
     >
+      <style>{`
+        .hide-scrollbar::-webkit-scrollbar { display: none; }
+        .hide-scrollbar { scrollbar-width: none; -ms-overflow-style: none; }
+      `}</style>
       <div style={{ position: "absolute", inset: 0, background: "oklch(0.10 0.04 240 / 0.10)", zIndex: 0, pointerEvents: "none" }} />
       <div style={{ position: "relative", zIndex: 1, display: "flex", flexDirection: "column", height: "100%" }}>
         <KiosqueHeader title="🗓️ Mon espace" showBack />
@@ -341,49 +345,57 @@ export default function MonAgenda() {
             overflow: "hidden",
           }}
         >
-          {/* Sélecteur de résident — grandes photos (x3) */}
+          {/* Sélecteur de résident — grandes photos (x3), se réduit une fois choisi */}
           <div
+            className="hide-scrollbar"
             style={{
               display: "flex",
-              gap: "1.8rem",
+              gap: selectedResidentId ? "1rem" : "1.8rem",
               overflowX: "auto",
-              paddingBottom: "0.5rem",
+              justifyContent: "center",
+              paddingBottom: "0.2rem",
               flexShrink: 0,
+              transition: "gap 250ms ease",
             }}
           >
-            {data.residents.map(r => (
-              <div
-                key={r.id}
-                onClick={() => setSelectedResidentId(r.id)}
-                style={{
-                  display: "flex",
-                  flexDirection: "column",
-                  alignItems: "center",
-                  gap: "0.6rem",
-                  cursor: "pointer",
-                  flexShrink: 0,
-                  opacity: selectedResidentId && selectedResidentId !== r.id ? 0.5 : 1,
-                  transition: "opacity 150ms",
-                }}
-              >
-                <PhotoCircle
-                  photo={r.photo}
-                  prenom={r.prenom}
-                  size={252}
-                  borderColor={selectedResidentId === r.id ? "#FFD600" : "oklch(0.40 0.04 240)"}
-                />
-                <span
+            {data.residents.map(r => {
+              const isSelected = selectedResidentId === r.id;
+              const tileSize = selectedResidentId ? (isSelected ? 110 : 70) : 252;
+              return (
+                <div
+                  key={r.id}
+                  onClick={() => setSelectedResidentId(r.id)}
                   style={{
-                    fontFamily: "'Baloo 2', sans-serif",
-                    fontWeight: 700,
-                    fontSize: "1.4rem",
-                    color: selectedResidentId === r.id ? "#FFD600" : "#fff",
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    gap: "0.5rem",
+                    cursor: "pointer",
+                    flexShrink: 0,
+                    opacity: selectedResidentId && !isSelected ? 0.5 : 1,
+                    transition: "opacity 150ms",
                   }}
                 >
-                  {r.prenom}
-                </span>
-              </div>
-            ))}
+                  <PhotoCircle
+                    photo={r.photo}
+                    prenom={r.prenom}
+                    size={tileSize}
+                    borderColor={isSelected ? "#FFD600" : "oklch(0.40 0.04 240)"}
+                  />
+                  <span
+                    style={{
+                      fontFamily: "'Baloo 2', sans-serif",
+                      fontWeight: 700,
+                      fontSize: selectedResidentId ? "1rem" : "1.4rem",
+                      color: isSelected ? "#FFD600" : "#fff",
+                      transition: "font-size 250ms ease",
+                    }}
+                  >
+                    {r.prenom}
+                  </span>
+                </div>
+              );
+            })}
             {data.residents.length === 0 && (
               <div style={{ color: "oklch(0.55 0.02 240)", fontFamily: "'Baloo 2', sans-serif" }}>
                 Aucun résident enregistré.
