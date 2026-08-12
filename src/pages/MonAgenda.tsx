@@ -340,6 +340,7 @@ export default function MonAgenda() {
             flex: 1,
             display: "flex",
             flexDirection: "column",
+            justifyContent: selectedResidentId ? "flex-start" : "center",
             padding: "1.5rem",
             gap: "1.2rem",
             overflow: "hidden",
@@ -406,7 +407,6 @@ export default function MonAgenda() {
           {!selectedResident ? (
             <div
               style={{
-                flex: 1,
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
@@ -415,6 +415,7 @@ export default function MonAgenda() {
                 fontSize: "1.3rem",
                 color: "oklch(0.55 0.02 240)",
                 textAlign: "center",
+                padding: "2rem 0",
               }}
             >
               👆 Choisissez votre prénom pour voir votre espace
