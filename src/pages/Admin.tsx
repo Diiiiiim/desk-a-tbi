@@ -725,27 +725,29 @@ function TabAgenda() {
 }
 
 type MenuField = "imageRepas" | "imageFeculent" | "imageLegume" | "imageAccompagnement" | "imageDessert";
+type DescField = "descriptionRepas" | "descriptionFeculent" | "descriptionLegume" | "descriptionAccompagnement" | "descriptionDessert";
 
-const MENU_CATEGORIES: { field: MenuField; label: string; emoji: string; optional: boolean }[] = [
-  { field: "imageRepas", label: "Plat principal", emoji: "🍖", optional: false },
-  { field: "imageFeculent", label: "Féculent", emoji: "🍚", optional: true },
-  { field: "imageLegume", label: "Légume", emoji: "🥦", optional: true },
-  { field: "imageAccompagnement", label: "Accompagnement", emoji: "🥗", optional: true },
-  { field: "imageDessert", label: "Dessert", emoji: "🍮", optional: true },
+const MENU_CATEGORIES: { field: MenuField; descField: DescField; label: string; emoji: string; optional: boolean }[] = [
+  { field: "imageRepas", descField: "descriptionRepas", label: "Plat principal", emoji: "🍖", optional: false },
+  { field: "imageFeculent", descField: "descriptionFeculent", label: "Féculent", emoji: "🍚", optional: true },
+  { field: "imageLegume", descField: "descriptionLegume", label: "Légume", emoji: "🥦", optional: true },
+  { field: "imageAccompagnement", descField: "descriptionAccompagnement", label: "Accompagnement", emoji: "🥗", optional: true },
+  { field: "imageDessert", descField: "descriptionDessert", label: "Dessert", emoji: "🍮", optional: true },
 ];
 
 type MenuData = ReturnType<typeof useData>["data"]["menus"];
 type UpdateMenuFn = ReturnType<typeof useData>["updateMenu"];
 
-// ─── Sous-composant externe : un slot d'image (photo + bouton) ───────────────
+// ─── Sous-composant externe : un slot d'image (photo + bouton + description) ─
 function CategorySlot({
-  type, field, label, emoji, optional, menus, updateMenu,
+  type, field, descField, label, emoji, optional, menus, updateMenu,
 }: {
-  type: "midi" | "soir"; field: MenuField; label: string; emoji: string; optional: boolean;
+  type: "midi" | "soir"; field: MenuField; descField: DescField; label: string; emoji: string; optional: boolean;
   menus: MenuData; updateMenu: UpdateMenuFn;
 }) {
   const menu = menus[type];
   const imageUrl = menu[field];
+  const descValue = menu[descField];
   const inputId = `menu-${type}-${field}`;
 
   async function handleImg(e: React.ChangeEvent<HTMLInputElement>) {
@@ -755,7 +757,7 @@ function CategorySlot({
   }
 
   return (
-    <div style={{ flex: "1 1 180px", minWidth: 160, display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+    <div style={{ flex: "1 1 180px", minWidth: 170, display: "flex", flexDirection: "column", gap: "0.5rem" }}>
       <div style={styles.subLabel}>{emoji} {label}{optional ? " (optionnel)" : ""}</div>
       {imageUrl ? (
         <img src={imageUrl} alt={label} style={{ width: "100%", height: 110, objectFit: "cover", borderRadius: "0.75rem" }} />
@@ -771,6 +773,12 @@ function CategorySlot({
       {optional && imageUrl && (
         <button style={styles.btnDanger} onClick={() => updateMenu(type, { [field]: "" })}>🗑️ Retirer</button>
       )}
+      <textarea
+        style={{ ...styles.input, minHeight: "56px", resize: "vertical", fontSize: "0.85rem" }}
+        placeholder="Description lue à voix haute (ex : Poulet rôti)"
+        value={descValue}
+        onChange={e => updateMenu(type, { [descField]: e.target.value })}
+      />
     </div>
   );
 }
@@ -792,6 +800,7 @@ function MenuSection({
             key={cat.field}
             type={type}
             field={cat.field}
+            descField={cat.descField}
             label={cat.label}
             emoji={cat.emoji}
             optional={cat.optional}
@@ -801,11 +810,11 @@ function MenuSection({
         ))}
       </div>
 
-      {/* Description */}
+      {/* Description globale — repli si aucune description par aliment n'est utilisée */}
       <div>
-        <div style={styles.subLabel}>Description du repas (lue à voix haute)</div>
+        <div style={styles.subLabel}>Description globale (optionnel, repli si les champs ci-dessus sont vides)</div>
         <textarea
-          style={{...styles.input, minHeight: "80px", resize: "vertical"}}
+          style={{...styles.input, minHeight: "60px", resize: "vertical"}}
           placeholder="Ex : Poulet rôti, riz, haricots verts, compote..."
           value={menu.description}
           onChange={e => updateMenu(type, { description: e.target.value })}

@@ -14,43 +14,45 @@ interface MenuPageProps {
 
 interface Categorie {
   key: "imageRepas" | "imageFeculent" | "imageLegume" | "imageAccompagnement" | "imageDessert";
+  descKey: "descriptionRepas" | "descriptionFeculent" | "descriptionLegume" | "descriptionAccompagnement" | "descriptionDessert";
   label: string;
   emoji: string;
   fallbackEmoji: string;
 }
 
 const CATEGORIES: Categorie[] = [
-  { key: "imageRepas", label: "Plat principal", emoji: "🍖", fallbackEmoji: "🍽️" },
-  { key: "imageFeculent", label: "Féculent", emoji: "🍚", fallbackEmoji: "🍚" },
-  { key: "imageLegume", label: "Légume", emoji: "🥦", fallbackEmoji: "🥦" },
-  { key: "imageAccompagnement", label: "Accompagnement", emoji: "🥗", fallbackEmoji: "🥗" },
-  { key: "imageDessert", label: "Dessert", emoji: "🍮", fallbackEmoji: "🍮" },
+  { key: "imageRepas", descKey: "descriptionRepas", label: "Plat principal", emoji: "🍖", fallbackEmoji: "🍽️" },
+  { key: "imageFeculent", descKey: "descriptionFeculent", label: "Féculent", emoji: "🍚", fallbackEmoji: "🍚" },
+  { key: "imageLegume", descKey: "descriptionLegume", label: "Légume", emoji: "🥦", fallbackEmoji: "🥦" },
+  { key: "imageAccompagnement", descKey: "descriptionAccompagnement", label: "Accompagnement", emoji: "🥗", fallbackEmoji: "🥗" },
+  { key: "imageDessert", descKey: "descriptionDessert", label: "Dessert", emoji: "🍮", fallbackEmoji: "🍮" },
 ];
 
 export default function MenuPage({ type }: MenuPageProps) {
   const { data } = useData();
   const menu = data.menus[type];
   const isMidi = type === "midi";
-  const [isPlaying, setIsPlaying] = useState(false);
+  const [playingKey, setPlayingKey] = useState<string | null>(null);
 
   const title = isMidi ? "🍽️ Menu du midi" : "🌙 Menu du soir";
   const accentColor = isMidi ? "#2E7D32" : "#4A148C";
   const horaire = isMidi ? "12h00" : "19h00";
 
-  const handleTextToSpeech = (text: string) => {
-    if (isPlaying) {
+  const handleTextToSpeech = (text: string, key: string) => {
+    if (playingKey === key) {
       window.speechSynthesis.cancel();
-      setIsPlaying(false);
+      setPlayingKey(null);
       return;
     }
+    window.speechSynthesis.cancel();
     const utterance = new SpeechSynthesisUtterance(text);
     utterance.lang = "fr-FR";
     utterance.rate = 0.9;
     utterance.pitch = 1;
     utterance.volume = 1;
-    utterance.onstart = () => setIsPlaying(true);
-    utterance.onend = () => setIsPlaying(false);
-    utterance.onerror = () => setIsPlaying(false);
+    utterance.onstart = () => setPlayingKey(key);
+    utterance.onend = () => setPlayingKey(null);
+    utterance.onerror = () => setPlayingKey(null);
     window.speechSynthesis.speak(utterance);
   };
 
@@ -122,7 +124,9 @@ export default function MenuPage({ type }: MenuPageProps) {
           >
             {categoriesActives.map(cat => {
               const imageUrl = menu[cat.key];
+              const descText = menu[cat.descKey];
               const isDessert = cat.key === "imageDessert";
+              const isCatPlaying = playingKey === cat.key;
               return (
                 <div
                   key={cat.key}
@@ -131,7 +135,7 @@ export default function MenuPage({ type }: MenuPageProps) {
                     display: "flex",
                     flexDirection: "column",
                     alignItems: "center",
-                    gap: "0.7rem",
+                    gap: "0.6rem",
                     borderLeft: `6px solid ${isDessert ? "#FFD600" : accentColor}`,
                     overflow: "hidden",
                     minHeight: 0,
@@ -177,15 +181,39 @@ export default function MenuPage({ type }: MenuPageProps) {
                       {cat.fallbackEmoji}
                     </div>
                   )}
+                  {descText && (
+                    <div
+                      onClick={() => handleTextToSpeech(descText, cat.key)}
+                      style={{
+                        fontFamily: "'Baloo 2', sans-serif",
+                        fontWeight: 600,
+                        fontSize: "clamp(0.8rem, 1.3vw, 1rem)",
+                        color: "#fff",
+                        textAlign: "center",
+                        padding: "0.5rem 0.8rem",
+                        background: isCatPlaying ? "oklch(0.32 0.06 95)" : "oklch(0.20 0.04 240)",
+                        borderRadius: "0.5rem",
+                        width: "100%",
+                        cursor: "pointer",
+                        transition: "all 0.25s ease",
+                        border: isCatPlaying ? "2px solid #FFD600" : "2px solid transparent",
+                        userSelect: "none",
+                        flexShrink: 0,
+                      }}
+                      title="Cliquez pour écouter"
+                    >
+                      {isCatPlaying ? "🔊 Lecture..." : `🔉 ${descText}`}
+                    </div>
+                  )}
                 </div>
               );
             })}
           </div>
 
-          {/* Description vocale */}
-          {menu.description && (
+          {/* Description globale (repli si aucune description par aliment renseignée) */}
+          {menu.description && !categoriesActives.some(c => menu[c.descKey]) && (
             <div
-              onClick={() => handleTextToSpeech(menu.description)}
+              onClick={() => handleTextToSpeech(menu.description, "global")}
               style={{
                 fontFamily: "'Baloo 2', sans-serif",
                 fontWeight: 600,
@@ -193,19 +221,19 @@ export default function MenuPage({ type }: MenuPageProps) {
                 color: "#fff",
                 textAlign: "center",
                 padding: "0.75rem 1.5rem",
-                background: isPlaying ? "oklch(0.30 0.04 240)" : "oklch(0.22 0.04 240)",
+                background: playingKey === "global" ? "oklch(0.30 0.04 240)" : "oklch(0.22 0.04 240)",
                 borderRadius: "0.5rem",
                 maxWidth: "1100px",
                 width: "100%",
                 cursor: "pointer",
                 transition: "all 0.3s ease",
-                border: isPlaying ? "2px solid #FFD600" : "2px solid transparent",
+                border: playingKey === "global" ? "2px solid #FFD600" : "2px solid transparent",
                 userSelect: "none",
                 flexShrink: 0,
               }}
               title="Cliquez pour écouter"
             >
-              {isPlaying ? "🔊 Lecture..." : `🔉 ${menu.description}`}
+              {playingKey === "global" ? "🔊 Lecture..." : `🔉 ${menu.description}`}
             </div>
           )}
         </main>

@@ -55,6 +55,11 @@ export interface Menu {
   imageAccompagnement: string;
   imageDessert: string;
   description: string;
+  descriptionRepas: string;
+  descriptionFeculent: string;
+  descriptionLegume: string;
+  descriptionAccompagnement: string;
+  descriptionDessert: string;
 }
 
 export interface TimelineMoment {
@@ -147,6 +152,11 @@ function dbToMenu(m: any): Menu {
     imageAccompagnement: m.image_accompagnement_url || '',
     imageDessert: m.image_dessert_url || '',
     description: m.description || '',
+    descriptionRepas: m.description_repas || '',
+    descriptionFeculent: m.description_feculent || '',
+    descriptionLegume: m.description_legume || '',
+    descriptionAccompagnement: m.description_accompagnement || '',
+    descriptionDessert: m.description_dessert || '',
   };
 }
 
@@ -188,7 +198,11 @@ const today = new Date().toISOString().split('T')[0];
 const JOURS: JourSemaine[] = ['dimanche', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi'];
 const jourSemaineActuel: JourSemaine = JOURS[new Date().getDay()];
 
-const DEFAULT_MENU: Menu = { imageRepas: '', imageFeculent: '', imageLegume: '', imageAccompagnement: '', imageDessert: '', description: '' };
+const DEFAULT_MENU: Menu = {
+  imageRepas: '', imageFeculent: '', imageLegume: '', imageAccompagnement: '', imageDessert: '',
+  description: '', descriptionRepas: '', descriptionFeculent: '', descriptionLegume: '',
+  descriptionAccompagnement: '', descriptionDessert: '',
+};
 const DEFAULT_APP_DATA: AppData = {
   residents: [], educateurs: [], activites: [], evenements: [],
   menus: { midi: DEFAULT_MENU, soir: DEFAULT_MENU },
@@ -491,6 +505,11 @@ export function DataProvider({ foyerId, children }: { foyerId: string; children:
     if (updates.imageAccompagnement !== undefined) dbUpdates.image_accompagnement_url = updates.imageAccompagnement;
     if (updates.imageDessert !== undefined) dbUpdates.image_dessert_url = updates.imageDessert;
     if (updates.description !== undefined) dbUpdates.description = updates.description;
+    if (updates.descriptionRepas !== undefined) dbUpdates.description_repas = updates.descriptionRepas;
+    if (updates.descriptionFeculent !== undefined) dbUpdates.description_feculent = updates.descriptionFeculent;
+    if (updates.descriptionLegume !== undefined) dbUpdates.description_legume = updates.descriptionLegume;
+    if (updates.descriptionAccompagnement !== undefined) dbUpdates.description_accompagnement = updates.descriptionAccompagnement;
+    if (updates.descriptionDessert !== undefined) dbUpdates.description_dessert = updates.descriptionDessert;
 
     const existingId = type === 'midi' ? menuMidiId : menuSoirId;
     if (existingId) {
@@ -500,6 +519,8 @@ export function DataProvider({ foyerId, children }: { foyerId: string; children:
         foyer_id: foyerId, type, date_menu: today,
         image_repas_url: '', image_feculent_url: '', image_legume_url: '',
         image_accompagnement_url: '', image_dessert_url: '', description: '',
+        description_repas: '', description_feculent: '', description_legume: '',
+        description_accompagnement: '', description_dessert: '',
         ...dbUpdates,
       }, { onConflict: 'foyer_id,type,date_menu' }).select().single();
       if (data) {
